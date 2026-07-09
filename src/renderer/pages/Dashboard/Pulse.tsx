@@ -77,10 +77,16 @@ export function Pulse() {
       <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Titlebar title="ALLUS PULSE" />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--allus-text-muted)', fontSize: 12 }}>
-          Carregando...
+          Carregando... (loading={loading}, pulse={pulse ? 'ok' : 'null'})
         </div>
       </div>
     );
+  }
+
+  try {
+    console.log('[Pulse] renderizando com dados:', { pulse, noFocusMemberIds: (pulse.insights as any).noFocusMemberIds });
+  } catch (e) {
+    console.error('[Pulse] erro ao logar:', e);
   }
 
   // Formata data por extenso
