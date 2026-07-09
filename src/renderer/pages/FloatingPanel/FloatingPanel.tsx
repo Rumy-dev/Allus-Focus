@@ -17,6 +17,7 @@ export function FloatingPanel() {
   const [showOpacityControl, setShowOpacityControl] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [myHoursSeconds, setMyHoursSeconds] = useState<number | null>(null);
+  const [isCompactMode, setIsCompactMode] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const modalCardRef = useRef<HTMLDivElement>(null);
   const opacityPanelRef = useRef<HTMLDivElement>(null);
@@ -162,6 +163,273 @@ export function FloatingPanel() {
   const bgOpacity = panelOpacity * 0.85;
   const borderOpacity = panelOpacity * 0.5;
   const textMutedOpacity = panelOpacity * 0.6;
+
+  // Layout compacto
+  if (isCompactMode) {
+    return (
+      <div
+        className="allus-titlebar allus-floating-root"
+        style={{
+          height: '100%',
+          padding: '6px 8px',
+          borderLeft: `3px solid ${session ? cycleColor : `rgba(255,255,255,${borderOpacity * 0.3})`}`,
+          borderRight: `2px solid ${session?.cycleKind === 'Foco' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255,255,255,0.08)'}`,
+          overflowY: 'auto',
+          background: `rgba(13, 11, 22, ${bgOpacity})`,
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+        } as any}
+      >
+        {/* Linha 1: Timer + Ícones + Botões */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--allus-font-mono)', color: session ? alertColor : 'var(--allus-text-muted)' }}>
+              {session ? formatDuration(remaining) : '–'}
+            </div>
+            <Tooltip text="Modo compacto">
+              <button
+                style={{
+                  ...iconBtn,
+                  width: 24,
+                  height: 24,
+                  fontSize: 12,
+                  padding: 0,
+                  background: isCompactMode ? 'rgba(167, 139, 250, 0.2)' : 'rgba(255,255,255,0.06)',
+                  borderColor: isCompactMode ? 'rgba(167, 139, 250, 0.3)' : 'rgba(255,255,255,0.12)',
+                  color: isCompactMode ? '#c4b5fd' : 'var(--allus-text-primary)',
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => setIsCompactMode((v) => !v)}
+              >
+                ⇄
+              </button>
+            </Tooltip>
+            <Tooltip text="Opacidade">
+              <button
+                style={{
+                  ...iconBtn,
+                  width: 24,
+                  height: 24,
+                  fontSize: 12,
+                  padding: 0,
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => setShowOpacityControl((v) => !v)}
+              >
+                ◐
+              </button>
+            </Tooltip>
+            <Tooltip text="Abrir janela principal">
+              <button
+                style={{
+                  ...iconBtn,
+                  width: 24,
+                  height: 24,
+                  fontSize: 12,
+                  padding: 0,
+                  transition: 'all 0.2s ease',
+                }}
+                onClick={() => window.allus.invoke('window:openMain', undefined)}
+              >
+                ⤢
+              </button>
+            </Tooltip>
+          </div>
+          <div style={{ display: 'flex', gap: '2px' }}>
+            {session ? (
+              <>
+                <button
+                  onClick={() => invokeAction('timer:playPause', undefined)}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    padding: 0,
+                    borderRadius: 4,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: session.status === 'Ativo' ? 'rgba(255, 184, 77, 0.2)' : 'rgba(79, 245, 227, 0.2)',
+                    color: session.status === 'Ativo' ? '#ffb84d' : '#4bf5e3',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 600,
+                  }}
+                  title={session.status === 'Ativo' ? 'Pausar' : 'Retomar'}
+                >
+                  {session.status === 'Ativo' ? '⏸' : '▶'}
+                </button>
+                <button
+                  onClick={() => (isFocus ? invokeAction('timer:skipToBreak', undefined) : invokeAction('timer:skipToFocus', undefined))}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    padding: 0,
+                    borderRadius: 4,
+                    border: 'none',
+                    background: cycleColor,
+                    color: '#0d0b16',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                  }}
+                  title={skipLabel}
+                >
+                  ✓
+                </button>
+              </>
+            ) : lastTask ? (
+              <>
+                <button
+                  onClick={() => setModeSelectTask(lastTask)}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    padding: 0,
+                    borderRadius: 4,
+                    border: '1.5px solid rgba(79, 245, 227, 0.5)',
+                    background: 'rgba(79, 245, 227, 0.12)',
+                    color: '#4bf5e3',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 600,
+                  }}
+                  title={`Continuar: ${lastTask.title}`}
+                >
+                  ▶
+                </button>
+                <button
+                  onClick={() => setModeSelectTask({ taskId: null, title: '' })}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    padding: 0,
+                    borderRadius: 4,
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'var(--allus-text-secondary)',
+                    fontSize: 11,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 600,
+                  }}
+                  title="Escolher outra tarefa"
+                >
+                  ↻
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAdd(true)}
+                style={{
+                  width: 24,
+                  height: 24,
+                  padding: 0,
+                  borderRadius: 4,
+                  border: '1.5px solid rgba(79, 245, 227, 0.4)',
+                  background: 'rgba(79, 245, 227, 0.1)',
+                  color: '#4bf5e3',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 600,
+                }}
+                title="Começar tarefa"
+              >
+                ▶
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Linha 2: Tarefa */}
+        <div style={{ fontSize: 11, lineHeight: 1.2, color: session ? 'var(--allus-text-primary)' : 'var(--allus-text-muted)', wordBreak: 'break-word', minHeight: 16 }}>
+          {session ? label : 'Nenhum bloco em andamento'}
+        </div>
+
+        {/* Barra de progresso */}
+        {session && (
+          <div style={{ width: '100%', height: 2, background: 'rgba(255,255,255,0.08)', borderRadius: 1, overflow: 'hidden' }}>
+            <div
+              style={{
+                width: `${progress * 100}%`,
+                height: '100%',
+                background: cycleColor,
+                transition: 'width 0.3s ease',
+                borderRadius: 1,
+              }}
+            />
+          </div>
+        )}
+
+        {showOpacityControl && (
+          <div
+            className="allus-no-drag"
+            ref={opacityPanelRef}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+            }}
+            onClick={() => setShowOpacityControl(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'rgba(13, 11, 22, 0.95)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 12,
+                padding: '16px',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                minWidth: '200px',
+              }}
+            >
+              <div style={{ fontSize: 12, color: 'var(--allus-text-muted)', marginBottom: '12px', fontWeight: 500 }}>Opacidade</div>
+              <input
+                type="range"
+                min={20}
+                max={100}
+                value={snapshot?.floatingPanelOpacity ?? 90}
+                onChange={(e) => invokeAction('prefs:setFloatingPanelOpacity', { opacity: Number(e.target.value) })}
+                style={{ width: '100%', cursor: 'pointer' }}
+              />
+              <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginTop: '8px', textAlign: 'center' }}>{snapshot?.floatingPanelOpacity ?? 90}%</div>
+            </div>
+          </div>
+        )}
+
+        {modeSelectTask && (
+          <TaskModeSelector
+            task={modeSelectTask}
+            recentTasks={snapshot.recentTasks}
+            onSelectTask={setModeSelectTask}
+            onClose={() => setModeSelectTask(null)}
+            cardRef={modalCardRef}
+          />
+        )}
+
+        <ToastHost />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -352,6 +620,20 @@ export function FloatingPanel() {
                 ▶ Começar
               </button>
             )}
+            <Tooltip text="Modo compacto">
+              <button
+                style={{
+                  ...iconBtn,
+                  transition: 'all 0.2s ease',
+                  background: isCompactMode ? 'rgba(167, 139, 250, 0.2)' : 'rgba(255,255,255,0.06)',
+                  borderColor: isCompactMode ? 'rgba(167, 139, 250, 0.3)' : 'rgba(255,255,255,0.12)',
+                  color: isCompactMode ? '#c4b5fd' : 'var(--allus-text-primary)',
+                }}
+                onClick={() => setIsCompactMode((v) => !v)}
+              >
+                ⇄
+              </button>
+            </Tooltip>
             <Tooltip text="Opacidade">
               <button
                 style={{
@@ -427,6 +709,20 @@ export function FloatingPanel() {
               onClick={() => setShowAdd((v) => !v)}
             >
               +
+            </button>
+          </Tooltip>
+          <Tooltip text="Modo compacto">
+            <button
+              style={{
+                ...iconBtn,
+                transition: 'all 0.2s ease',
+                background: isCompactMode ? 'rgba(167, 139, 250, 0.2)' : 'rgba(255,255,255,0.06)',
+                borderColor: isCompactMode ? 'rgba(167, 139, 250, 0.3)' : 'rgba(255,255,255,0.12)',
+                color: isCompactMode ? '#c4b5fd' : 'var(--allus-text-primary)',
+              }}
+              onClick={() => setIsCompactMode((v) => !v)}
+            >
+              ⇄
             </button>
           </Tooltip>
           <Tooltip text="Opacidade">
