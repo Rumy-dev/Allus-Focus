@@ -22,6 +22,13 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({ setupIcon: 'assets/icon.ico' }),
     new MakerDMG({
+      // Nome do volume sem espaço: "hdiutil detach" falha de forma
+      // intermitente em runners do GitHub Actions quando o volume montado
+      // tem espaço no nome (bug conhecido do electron-installer-dmg/hdiutil
+      // em CI — o volume monta como "Allus Clock" mas o detach às vezes
+      // procura por um path que não bate, retornando "No such file or
+      // directory"). Local, num Mac de verdade, isso normalmente não acontece.
+      name: 'AllusClock',
       format: 'ULFO',
       iconSize: 100,
       contents: [

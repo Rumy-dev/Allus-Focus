@@ -22,7 +22,10 @@ jobs:
         run: npm ci
 
       - name: Build .dmg
-        run: npm run make
+        # hdiutil detach falha de forma intermitente em runners macOS do
+        # GitHub Actions (bug conhecido do electron-installer-dmg em CI) —
+        # tenta de novo antes de desistir.
+        run: npm run make || npm run make
 
       - name: Upload .dmg artifact
         uses: actions/upload-artifact@v4
