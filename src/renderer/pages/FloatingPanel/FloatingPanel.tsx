@@ -28,9 +28,9 @@ export function FloatingPanel() {
 
   // Listener direto de ESC
   useEffect(() => {
-    console.log('[FloatingPanel] Registrando listener de ESC');
+    console.log('[FloatingPanel] Registrando listener de ESC no window e document');
     const handleKeyDown = (e: KeyboardEvent) => {
-      console.log('[FloatingPanel] Keydown event:', e.key);
+      console.log('[FloatingPanel] Keydown event em window/document:', e.key);
       if (e.key === 'Escape') {
         console.log('[FloatingPanel] ESC pressed!');
         e.preventDefault();
@@ -56,10 +56,12 @@ export function FloatingPanel() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    console.log('[FloatingPanel] Listener registrado');
+    document.addEventListener('keydown', handleKeyDown);
+    console.log('[FloatingPanel] Listeners registrados em window e document');
     return () => {
-      console.log('[FloatingPanel] Removendo listener de ESC');
       window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown);
+      console.log('[FloatingPanel] Listeners removidos');
     };
   }, [modeSelectTask, showProjectPicker, showAdd]);
 
