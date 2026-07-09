@@ -111,9 +111,32 @@ export function showFloatingPanel(): void {
     return;
   }
 
-  // Usar tamanho padrão
-  let width = 307;
-  let height = 390;
+  const snapshot = appStore.getSnapshot();
+  floatingPanelCompactMode = snapshot.floatingPanelIsCompactMode ?? false;
+  const hasActiveSession = snapshot.activeSession !== null;
+
+  let width: number;
+  let height: number;
+
+  if (floatingPanelCompactMode) {
+    const savedSize = snapshot.floatingPanelCompactSize;
+    if (savedSize?.width && savedSize?.height) {
+      width = savedSize.width;
+      height = savedSize.height;
+    } else {
+      width = hasActiveSession ? 285 : 218;
+      height = hasActiveSession ? 57 : 54;
+    }
+  } else {
+    const savedSize = snapshot.floatingPanelSize;
+    if (savedSize?.width && savedSize?.height) {
+      width = savedSize.width;
+      height = savedSize.height;
+    } else {
+      width = hasActiveSession ? 429 : 307;
+      height = hasActiveSession ? 479 : 390;
+    }
+  }
 
   const win = new BrowserWindow({
     width,
