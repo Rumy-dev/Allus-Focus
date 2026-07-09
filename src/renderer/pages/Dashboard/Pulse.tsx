@@ -93,9 +93,10 @@ export function Pulse() {
   const todayHours = formatDuration(pulse.teamTodaySeconds);
   const unclassifiedHours = formatDuration(pulse.insights.unclassifiedSeconds);
   const longestBlockHours = formatDuration(pulse.insights.longestBlockSeconds);
-  const yesterdayTrend = pulse.insights.todayVsYesterdayPct;
+  const yesterdayTrend = (pulse.insights as any).todayVsYesterdayPct ?? 0;
   const yesterdayIndicator = yesterdayTrend > 0 ? '↑' : yesterdayTrend < 0 ? '↓' : '→';
   const yesterdayColor = yesterdayTrend > 0 ? '#4bf5e3' : yesterdayTrend < 0 ? '#ff5fae' : '#999';
+  const noFocusMemberIds = (pulse.insights as any).noFocusMemberIds ?? [];
 
   return (
     <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -136,7 +137,7 @@ export function Pulse() {
         </div>
 
         {/* Grid de Radar + Insights */}
-        {(pulse.projectBudgets.length > 0 || pulse.insights.unclassifiedSeconds > 0 || pulse.insights.noFocusMemberIds.length > 0) && (
+        {(pulse.projectBudgets.length > 0 || pulse.insights.unclassifiedSeconds > 0 || noFocusMemberIds.length > 0) && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
             {/* RADAR DE ORÇAMENTO */}
             {pulse.projectBudgets.length > 0 && (
@@ -146,7 +147,13 @@ export function Pulse() {
                   {pulse.projectBudgets.slice(0, 3).map((proj) => (
                     <div
                       key={proj.projectId}
-                      onClick={() => window.allus.invoke('window:openDashboard', undefined)}
+                      onClick={() => {
+                        try {
+                          window.allus.invoke('window:openDashboard', undefined);
+                        } catch (err) {
+                          console.error('Erro ao abrir Dashboard:', err);
+                        }
+                      }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -211,18 +218,18 @@ export function Pulse() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#ff5fae' }}>{unclassifiedHours}</div>
                   </div>
                 )}
-                {pulse.insights.noFocusMemberIds.length > 0 && (
+                {noFocusMemberIds.length > 0 && (
                   <div style={{ paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                     <div style={{ color: 'var(--allus-text-muted)', marginBottom: 4 }}>
-                      ○ Sem bloco ({pulse.insights.noFocusMemberIds.length})
+                      ○ Sem bloco ({noFocusMemberIds.length})
                     </div>
                     <div style={{ fontSize: 12, color: '#999' }}>
                       {pulse.teamMembers
-                        .filter((m) => pulse.insights.noFocusMemberIds.includes(m.userId))
+                        .filter((m) => noFocusMemberIds.includes(m.userId))
                         .slice(0, 3)
                         .map((m) => m.fullName)
                         .join(', ')}
-                      {pulse.insights.noFocusMemberIds.length > 3 && ` +${pulse.insights.noFocusMemberIds.length - 3}`}
+                      {noFocusMemberIds.length > 3 && ` +${noFocusMemberIds.length - 3}`}
                     </div>
                   </div>
                 )}
