@@ -113,7 +113,7 @@ export function showFloatingPanel(): void {
 
   const snapshot = appStore.getSnapshot();
   floatingPanelCompactMode = snapshot.floatingPanelIsCompactMode ?? false;
-  const hasActiveSession = snapshot.activeSession !== null;
+  const hasActiveSession = snapshot.activeSession?.status === 'Ativo';
 
   let width: number;
   let height: number;
