@@ -187,7 +187,7 @@ export function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           <div className="allus-glass" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 8 }}>TOTAL DE HORAS</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#4bf5e3', fontFamily: 'Courier New, monospace' }}>{totalHours}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: '#4bf5e3', fontFamily: 'var(--allus-font-mono)' }}>{totalHours}</div>
           </div>
           <div className="allus-glass" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 8 }}>PESSOA COM MAIS HORAS</div>

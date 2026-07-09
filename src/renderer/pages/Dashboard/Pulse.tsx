@@ -150,7 +150,7 @@ export function Pulse() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           <div className="allus-glass" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 8 }}>FOCANDO AGORA</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: '#4bf5e3', fontFamily: 'Courier New, monospace' }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: '#4bf5e3', fontFamily: 'var(--allus-font-mono)' }}>
               {pulse.teamFocusingCount}
             </div>
           </div>
@@ -160,11 +160,11 @@ export function Pulse() {
               <span style={{ fontSize: 14, color: yesterdayColor, fontWeight: 'bold' }}>{yesterdayIndicator}</span>
               <span style={{ fontSize: 9, color: yesterdayColor }}>{Math.abs(yesterdayTrend)}%</span>
             </div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#ff5fae', fontFamily: 'Courier New, monospace' }}>{todayHours}</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: '#ff5fae', fontFamily: 'var(--allus-font-mono)' }}>{todayHours}</div>
           </div>
           <div className="allus-glass" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 8 }}>META DIÁRIA</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: pulse.dailyGoalPct >= 100 ? '#4bf5e3' : '#9b6bff', fontFamily: 'Courier New, monospace' }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: pulse.dailyGoalPct >= 100 ? '#4bf5e3' : '#9b6bff', fontFamily: 'var(--allus-font-mono)' }}>
               {pulse.dailyGoalPct}%
             </div>
           </div>
@@ -241,7 +241,7 @@ export function Pulse() {
                           />
                         </div>
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--allus-text-muted)', fontFamily: 'Courier New, monospace', minWidth: 40, textAlign: 'right' }}>
+                      <div style={{ fontSize: 10, color: 'var(--allus-text-muted)', fontFamily: 'var(--allus-font-mono)', minWidth: 40, textAlign: 'right' }}>
                         {proj.pct}%
                       </div>
                     </div>
@@ -374,7 +374,7 @@ function TeamMemberRow({ member }: TeamMemberRowProps) {
           {taskDisplay}
         </div>
       </div>
-      <div style={{ color: 'var(--allus-text-muted)', fontFamily: 'Courier New, monospace', fontSize: 10, whiteSpace: 'nowrap', textAlign: 'right' }}>
+      <div style={{ color: 'var(--allus-text-muted)', fontFamily: 'var(--allus-font-mono)', fontSize: 10, whiteSpace: 'nowrap', textAlign: 'right' }}>
         {displayTime}
       </div>
     </div>

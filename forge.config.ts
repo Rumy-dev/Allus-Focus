@@ -13,9 +13,10 @@ const config: ForgeConfig = {
     asar: true,
     icon: 'assets/icon',
     extraResource: ['assets'],
-    osxSign: {},
-    entitlements: 'assets/entitlements.plist',
     extendInfo: 'assets/info.plist',
+    osxSign: {
+      optionsForFile: () => ({ entitlements: 'assets/entitlements.plist' }),
+    },
   },
   rebuildConfig: {},
   makers: [

@@ -19,7 +19,11 @@ function assetsDir(): string {
 
 function trayIcon() {
   const image = nativeImage.createFromPath(path.join(assetsDir(), 'icon.png'));
-  return image.resize({ width: 32, height: 32 });
+  // macOS: menu bar icons devem ser pequenos (16x16); o resto do espaço é
+  // ocupado pelo título via setTitle(). No Windows/Linux a tray aceita um
+  // ícone maior sem texto ao lado.
+  const size = process.platform === 'darwin' ? 16 : 32;
+  return image.resize({ width: size, height: size });
 }
 
 export function initTray(): void {
