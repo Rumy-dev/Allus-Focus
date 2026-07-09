@@ -29,6 +29,8 @@ export async function queryPulse(): Promise<PulseResult> {
   const now = new Date();
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
+  const yesterdayStart = startOfDay(new Date(now.getTime() - 24 * 3600 * 1000));
+  const yesterdayEnd = endOfDay(new Date(now.getTime() - 24 * 3600 * 1000));
   const monthStart = startOfMonth(now);
   const weekStart = sevenDaysAgo(now);
 
@@ -68,6 +70,15 @@ export async function queryPulse(): Promise<PulseResult> {
     .lte('started_at', todayEnd);
 
   if (todayLogsError) throw new Error(todayLogsError.message);
+
+  // 3b. Task logs de ontem para comparação
+  const { data: yesterdayTaskLogs, error: yesterdayLogsError } = await supabase
+    .from('task_logs')
+    .select('elapsed_seconds')
+    .gte('started_at', yesterdayStart)
+    .lte('started_at', yesterdayEnd);
+
+  if (yesterdayLogsError) throw new Error(yesterdayLogsError.message);
 
   // 4. Task logs do mês para radar de orçamento
   const { data: monthTaskLogs, error: monthLogsError } = await supabase
@@ -209,6 +220,17 @@ export async function queryPulse(): Promise<PulseResult> {
   const DAILY_GOAL_SECONDS = 8 * 3600;
   const dailyGoalPct = Math.round((teamTodaySeconds / DAILY_GOAL_SECONDS) * 100);
 
+  // Hoje vs. ontem
+  const teamYesterdaySeconds = yesterdayTaskLogs?.reduce((sum, log) => sum + (log.elapsed_seconds ?? 0), 0) ?? 0;
+  const todayVsYesterdayPct = teamYesterdaySeconds > 0
+    ? Math.round(((teamTodaySeconds - teamYesterdaySeconds) / teamYesterdaySeconds) * 100)
+    : 0;
+
+  // Quem não focou hoje (offline + 0 segundos hoje)
+  const noFocusMemberIds = teamMembers
+    .filter((m) => m.status === 'offline' && m.todayTotalSeconds === 0)
+    .map((m) => m.userId);
+
   return {
     generatedAt: now.toISOString(),
     teamMembers,
@@ -220,6 +242,8 @@ export async function queryPulse(): Promise<PulseResult> {
       unclassifiedSeconds,
       topClientPct,
       longestBlockSeconds,
+      todayVsYesterdayPct,
+      noFocusMemberIds,
     },
   };
 }

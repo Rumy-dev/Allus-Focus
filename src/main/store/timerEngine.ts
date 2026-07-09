@@ -2,7 +2,6 @@ import { supabase } from '../supabase/client';
 import { appStore } from './appStore';
 import { authManager } from '../auth/authManager';
 import { notify } from '../notifications';
-import { savePrefs } from './prefsStore';
 import * as taskStore from './taskStore';
 import { AVULSO_PROJECT_ID } from './taskStore';
 import { POMO_MODES, displayPath } from '../../shared/types';
@@ -18,6 +17,11 @@ function currentUserId(): string {
   const state = authManager.getState();
   if (state.status !== 'signedIn') throw new Error('Usuário não autenticado.');
   return state.profile.id;
+}
+
+function notifyEnabled(key: 'notifyFocusStart' | 'notifyFocusEnd' | 'notifyBreakEnd'): boolean {
+  const state = authManager.getState();
+  return state.status === 'signedIn' ? state.profile.preferences[key] : true;
 }
 
 function currentDisplayLabel(session: PomoSession, logs: PomoTaskLog[]): string {
@@ -39,31 +43,54 @@ function stopTicker(): void {
   tickHandle = null;
 }
 
+// Sempre gravamos o TOTAL acumulado (não deltas), então uma falha de rede
+// aqui não perde dado — só atrasa a gravação até o próximo tick/flush ou
+// até a reconexão (ver taskStore.subscribeRealtime + forceFlush abaixo).
+// Por isso engolimos o erro em vez de propagar (não queremos que uma
+// queda de internet derrube o loop do timer).
 async function persistSession(session: PomoSession, opts: { immediate?: boolean } = {}): Promise<void> {
   ticksSinceFlush += 1;
   if (!opts.immediate && ticksSinceFlush < FLUSH_INTERVAL_TICKS) return;
   ticksSinceFlush = 0;
-  await supabase
-    .from('sessions')
-    .update({
-      elapsed_seconds: session.elapsedSeconds,
-      status: session.status,
-      ended_at: session.endedAt,
-      active_task_log_id: session.activeTaskLogId,
-    })
-    .eq('id', session.id);
+  try {
+    await supabase
+      .from('sessions')
+      .update({
+        elapsed_seconds: session.elapsedSeconds,
+        status: session.status,
+        ended_at: session.endedAt,
+        active_task_log_id: session.activeTaskLogId,
+      })
+      .eq('id', session.id);
+  } catch (err) {
+    console.error('[timerEngine] falha ao persistir sessão (offline?)', err);
+  }
 }
 
 async function persistActiveLog(log: PomoTaskLog, opts: { immediate?: boolean } = {}): Promise<void> {
   if (!opts.immediate && ticksSinceFlush !== 0) return; // acompanha o mesmo ritmo da sessão
-  await supabase
-    .from('task_logs')
-    .update({
-      elapsed_seconds: log.elapsedSeconds,
-      is_done: log.isDone,
-      completed_at: log.completedAt,
-    })
-    .eq('id', log.id);
+  try {
+    await supabase
+      .from('task_logs')
+      .update({
+        elapsed_seconds: log.elapsedSeconds,
+        is_done: log.isDone,
+        completed_at: log.completedAt,
+      })
+      .eq('id', log.id);
+  } catch (err) {
+    console.error('[timerEngine] falha ao persistir log de tarefa (offline?)', err);
+  }
+}
+
+// Chamado quando o Realtime reconecta — evita esperar até 15s pra
+// sincronizar o que ficou pendente durante a queda.
+export async function forceFlushActive(): Promise<void> {
+  const { activeSession, activeTaskLogs } = appStore.getSnapshot();
+  if (!activeSession) return;
+  await persistSession(activeSession, { immediate: true });
+  const activeLog = activeTaskLogs.find((l) => l.id === activeSession.activeTaskLogId);
+  if (activeLog) await persistActiveLog(activeLog, { immediate: true });
 }
 
 async function insertSession(partial: {
@@ -132,10 +159,12 @@ export async function startFocus(taskTitle: string, mode?: PomoMode): Promise<vo
     task: taskTitle,
   });
 
-  savePrefs({ selectedMode: useMode });
+  await authManager.updatePreferences({ selectedMode: useMode });
   appStore.patch({ selectedMode: useMode, activeSession: session, activeTaskLogs: [] });
   startTicker();
-  notify('Bloco iniciado', `${POMO_MODES[useMode].title}: timer mestre em andamento.`);
+  if (notifyEnabled('notifyFocusStart')) {
+    notify('Bloco iniciado', `${POMO_MODES[useMode].title}: timer mestre em andamento.`);
+  }
 
   if (pendingCarryOverTitle) {
     const carry = pendingCarryOverTitle;
@@ -226,7 +255,9 @@ export async function completeSession(): Promise<void> {
   await persistSession(endedSession, { immediate: true });
 
   if (session.cycleKind === 'Foco') {
-    notify('Foco concluido', `Hora da pausa de ${Math.round(POMO_MODES[session.mode].breakSeconds / 60)}m.`);
+    if (notifyEnabled('notifyFocusEnd')) {
+      notify('Foco concluido', `Hora da pausa de ${Math.round(POMO_MODES[session.mode].breakSeconds / 60)}m.`);
+    }
     const breakSession = await insertSession({
       mode: session.mode,
       cycleKind: 'Pausa',
@@ -237,7 +268,9 @@ export async function completeSession(): Promise<void> {
     appStore.patch({ activeSession: breakSession, activeTaskLogs: [] });
     startTicker();
   } else {
-    notify('Pausa concluída', 'Novo bloco de foco aguardando. Pressione play para iniciar.');
+    if (notifyEnabled('notifyBreakEnd')) {
+      notify('Pausa concluída', 'Novo bloco de foco aguardando. Pressione play para iniciar.');
+    }
     const nextFocus = await insertSession({
       mode: session.mode,
       cycleKind: 'Foco',
@@ -290,7 +323,20 @@ export async function skipToFocus(): Promise<void> {
 export async function restart(sessionId: string): Promise<void> {
   const { data } = await supabase.from('sessions').select('mode').eq('id', sessionId).single();
   const mode = (data?.mode as PomoMode) ?? appStore.getSnapshot().selectedMode;
+
+  const { data: lastLog } = await supabase
+    .from('task_logs')
+    .select('task_id, task_title')
+    .eq('session_id', sessionId)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   await startFocus('Bloco de foco', mode);
+
+  if (lastLog) {
+    await focusTask(lastLog.task_id, null, lastLog.task_title);
+  }
 }
 
 export async function deleteTaskLog(taskLogId: string): Promise<void> {
@@ -316,7 +362,7 @@ export async function deleteSession(sessionId: string): Promise<void> {
 }
 
 export async function setMode(mode: PomoMode): Promise<void> {
-  savePrefs({ selectedMode: mode });
+  await authManager.updatePreferences({ selectedMode: mode });
   appStore.patch({ selectedMode: mode });
 }
 
@@ -355,11 +401,10 @@ export async function focusTask(taskId: string | null, _subtaskId: string | null
   }
 
   const nextSession = { ...appStore.getSnapshot().activeSession!, activeTaskLogId: log.id };
-  appStore.patch({
-    activeSession: nextSession,
-    recentTasks: dedupeRecent([log, ...appStore.getSnapshot().recentTasks]),
-  });
+  appStore.patch({ activeSession: nextSession });
   await persistSession(nextSession, { immediate: true });
+  // Recalcula tarefas mais usadas com o novo foco contabilizado
+  await loadMostUsedTasks();
 }
 
 export async function quickAdd(title: string, avulsa: boolean): Promise<void> {
@@ -387,17 +432,6 @@ export async function quickAdd(title: string, avulsa: boolean): Promise<void> {
   await focusTask(task.id, null, task.title);
 }
 
-function dedupeRecent(logs: PomoTaskLog[]): PomoTaskLog[] {
-  const seen = new Set<string>();
-  const out: PomoTaskLog[] = [];
-  for (const log of logs) {
-    if (seen.has(log.taskTitle)) continue;
-    seen.add(log.taskTitle);
-    out.push(log);
-    if (out.length >= 3) break;
-  }
-  return out;
-}
 
 export function mapSession(row: any): PomoSession {
   return {
@@ -429,6 +463,55 @@ export function mapTaskLog(row: any): PomoTaskLog {
     startedAt: row.started_at,
     completedAt: row.completed_at,
   };
+}
+
+// Carrega as 3 tarefas mais focadas (por frequência histórica) do usuário
+// logado. Cada tarefa retornada é o registro mais recente daquele taskId,
+// garantindo que título/projeto refletem o estado atual.
+export async function loadMostUsedTasks(): Promise<void> {
+  try {
+    const userId = currentUserId();
+    const { data: allLogs, error } = await supabase
+      .from('task_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .not('task_id', 'is', null) // ignora tarefas avulsas (sem taskId)
+      .order('started_at', { ascending: false }); // mais recentes primeiro
+
+    if (error || !allLogs) {
+      console.error('[timerEngine] falha ao carregar tarefas mais usadas', error);
+      return;
+    }
+
+    // Conta ocorrências por taskId
+    const taskIdCounts = new Map<string, number>();
+    const taskIdLatest = new Map<string, any>(); // último registro de cada taskId
+
+    for (const log of allLogs) {
+      const tid = log.task_id;
+      if (!tid) continue;
+      taskIdCounts.set(tid, (taskIdCounts.get(tid) ?? 0) + 1);
+      if (!taskIdLatest.has(tid)) {
+        taskIdLatest.set(tid, log);
+      }
+    }
+
+    // Ordena por contagem descrescente e pega os 3 mais frequentes
+    const sorted = Array.from(taskIdCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([tid]) => tid);
+
+    // Mapeia o registro mais recente de cada um
+    const mostUsedTasks: PomoTaskLog[] = sorted
+      .map((tid) => taskIdLatest.get(tid))
+      .filter((log): log is any => log !== undefined)
+      .map(mapTaskLog);
+
+    appStore.patch({ recentTasks: mostUsedTasks });
+  } catch (err) {
+    console.error('[timerEngine] erro ao loadMostUsedTasks', err);
+  }
 }
 
 export { currentDisplayLabel };

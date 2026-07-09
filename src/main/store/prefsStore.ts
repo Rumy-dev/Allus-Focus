@@ -1,21 +1,17 @@
 import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { PomoMode } from '../../shared/types';
-import { DEFAULT_MODE } from '../../shared/types';
 
+// Só o que faz sentido guardar por máquina (não por conta) — a última
+// seleção de "destino" nesse dispositivo. Som/modo padrão/minimizável e
+// notificações moraram aqui antes, mas agora vivem em profiles.preferences
+// (Supabase), pra seguir a pessoa entre dispositivos — ver authManager.ts.
 export interface Prefs {
-  selectedMode: PomoMode;
   selectedProjectId: string | null;
-  soundEnabled: boolean;
-  floatingMinimizable: boolean;
 }
 
 const DEFAULT_PREFS: Prefs = {
-  selectedMode: DEFAULT_MODE,
   selectedProjectId: null,
-  soundEnabled: true,
-  floatingMinimizable: false,
 };
 
 function filePath(): string {

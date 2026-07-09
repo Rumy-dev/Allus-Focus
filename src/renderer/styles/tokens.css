@@ -1,6 +1,7 @@
 :root {
   --allus-bg-1: #0d0b16;
   --allus-bg-2: #150f24;
+  --allus-surface: #1a1625;
   --allus-pink: #ff5fae;
   --allus-cyan: #4bf5e3;
   --allus-purple: #9b6bff;
@@ -20,6 +21,12 @@
   --allus-status-interrompido: #ff6b6b;
   --allus-font: 'Segoe UI', 'SF Pro Rounded', system-ui, sans-serif;
   --allus-font-mono: 'Cascadia Mono', 'SF Mono', ui-monospace, monospace;
+  --allus-space-1: 4px;
+  --allus-space-2: 8px;
+  --allus-space-3: 12px;
+  --allus-space-4: 16px;
+  --allus-space-5: 24px;
+  --allus-space-6: 32px;
 }
 
 .allus-glass {

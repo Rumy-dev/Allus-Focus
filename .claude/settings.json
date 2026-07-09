@@ -3,7 +3,20 @@
     "allow": [
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://bnzqyqnkkbumofgcdbbr.supabase.co/rest/v1/clients?select=id,name\" -H \"apikey: sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH\")",
       "Bash(curl -s \"https://bnzqyqnkkbumofgcdbbr.supabase.co/rest/v1/clients?select=id,name\" -H \"apikey: sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH\")",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(taskkill //F //IM electron.exe)",
+      "Bash(npm start *)",
+      "Bash(node -e \"const {Jimp}=require\\('jimp'\\); console.log\\(typeof Jimp\\)\")",
+      "Bash(node -e \"const p=require\\('jimp/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(node simulate_data.js)",
+      "Bash(bash simulate_data.sh)",
+      "Bash(bash \"C:\\\\Users\\\\rumye\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-rumye-OneDrive-Desktop-Allus-Clock\\\\bc294845-8059-40ea-be4a-83d2950e87fb\\\\scratchpad\\\\simulate_data.sh\")",
+      "Bash(curl -s https://bnzqyqnkkbumofgcdbbr.supabase.co/rest/v1/tasks?select=id,title,projectId -H 'Authorization: Bearer sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH' -H 'apikey: sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH' -H 'Content-Type: application/json')",
+      "Bash(curl -s https://bnzqyqnkkbumofgcdbbr.supabase.co/rest/v1/tasks?select=id,title,project_id -H 'Authorization: Bearer sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH' -H 'apikey: sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH' -H 'Content-Type: application/json')",
+      "Bash(curl -s https://bnzqyqnkkbumofgcdbbr.supabase.co/rest/v1/projects?select=id,name,client_id -H 'Authorization: Bearer sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH' -H 'apikey: sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH' -H 'Content-Type: application/json')",
+      "PowerShell(Get-Process | Where-Object {$_.Name -match \"electron|forge\"} | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; Write-Output \"Processos encerrados\")",
+      "PowerShell(Get-Process | Where-Object {$_.Name -match \"electron|forge\"} | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; Write-Output \"Pronto\")",
+      "PowerShell(Get-Process | Where-Object {$_.Name -match \"electron|forge\"} | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 300; Write-Output \"OK\")"
     ]
   }
 }

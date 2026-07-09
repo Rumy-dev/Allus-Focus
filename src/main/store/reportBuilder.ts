@@ -127,6 +127,33 @@ export async function querySessions(range: DateRangeFilter): Promise<PomoSession
   return (data ?? []).map(mapSession);
 }
 
+export async function queryTrend(
+  range: DateRangeFilter,
+  filters?: { clientId?: string; projectId?: string; userId?: string },
+): Promise<{ date: string; totalSeconds: number }[]> {
+  const { start, end } = rangeToBounds(range);
+  let query = supabase.from('task_logs').select('started_at, elapsed_seconds');
+  if (start) query = query.gte('started_at', start);
+  if (end) query = query.lte('started_at', end);
+  if (filters?.clientId) query = query.eq('client_id', filters.clientId);
+  if (filters?.projectId) query = query.eq('project_id', filters.projectId);
+  if (filters?.userId) query = query.eq('user_id', filters.userId);
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  const dayMap = new Map<string, number>();
+  for (const row of data ?? []) {
+    if ((row.elapsed_seconds ?? 0) <= 0) continue;
+    const date = new Date(row.started_at).toISOString().split('T')[0];
+    dayMap.set(date, (dayMap.get(date) ?? 0) + row.elapsed_seconds);
+  }
+
+  return Array.from(dayMap.entries())
+    .map(([date, totalSeconds]) => ({ date, totalSeconds }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function exportCsv(range: DateRangeFilter): Promise<{ path: string } | { error: string }> {
   const report = await queryReport(range);
   const lines = ['Cliente,Projeto,Tarefa,Subtarefa,Sessões,Tempo (s),Tempo Formatado'];

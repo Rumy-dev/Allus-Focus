@@ -144,8 +144,8 @@ export function showTaskCenter(): void {
   const win = new BrowserWindow({
     width: 760,
     height: 620,
-    minWidth: 760,
-    minHeight: 620,
+    minWidth: 640,
+    minHeight: 480,
     frame: false,
     transparent: true,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
@@ -167,8 +167,8 @@ export function showTimeCenter(): void {
   const win = new BrowserWindow({
     width: 800,
     height: 600,
-    minWidth: 800,
-    minHeight: 600,
+    minWidth: 680,
+    minHeight: 480,
     frame: false,
     transparent: true,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },

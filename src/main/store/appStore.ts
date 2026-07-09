@@ -1,14 +1,18 @@
 import type { AppSnapshot } from '../../shared/ipc-contract';
 import { loadPrefs } from './prefsStore';
+import { DEFAULT_PREFERENCES } from '../../shared/types';
 
 type Listener = (snapshot: AppSnapshot) => void;
 
 const prefs = loadPrefs();
 
+// soundEnabled/floatingMinimizable/selectedMode começam nos defaults e são
+// substituídos pelos valores da conta (profiles.preferences) assim que o
+// login acontece — ver main.ts e authManager.ts.
 let state: AppSnapshot = {
   auth: { status: 'signedOut', profile: null },
   online: true,
-  selectedMode: prefs.selectedMode,
+  selectedMode: DEFAULT_PREFERENCES.selectedMode,
   selectedProjectId: prefs.selectedProjectId,
   activeSession: null,
   activeTaskLogs: [],
@@ -16,9 +20,12 @@ let state: AppSnapshot = {
   clients: [],
   projects: [],
   tasks: [],
-  soundEnabled: prefs.soundEnabled,
-  floatingMinimizable: prefs.floatingMinimizable,
+  soundEnabled: DEFAULT_PREFERENCES.soundEnabled,
+  floatingMinimizable: DEFAULT_PREFERENCES.floatingMinimizable,
+  floatingPanelOpacity: DEFAULT_PREFERENCES.floatingPanelOpacity,
+  autoLaunchEnabled: false,
   recentTasks: [],
+  profiles: [],
 };
 
 const listeners = new Set<Listener>();

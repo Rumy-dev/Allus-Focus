@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Titlebar } from '../../components/Titlebar';
+import { DateFilterBar } from '../../components/DateFilterBar';
+import { ToastHost } from '../../components/ToastHost';
+import { invokeAction } from '../../invoke';
 import { formatDuration } from '../../../shared/types';
 import type { DateRangeFilter, SessionDateFilter, TimeReportPerson } from '../../../shared/types';
-
-const FILTERS: SessionDateFilter[] = ['Todas', 'Hoje', 'Ontem', 'Mês', '7 dias'];
 
 export function TimeCenter() {
   const [filter, setFilter] = useState<SessionDateFilter>('Hoje');
@@ -51,7 +52,7 @@ export function TimeCenter() {
   }
 
   async function handleExport() {
-    await window.allus.invoke('report:exportCsv', { range });
+    await invokeAction('report:exportCsv', { range });
   }
 
   return (
@@ -70,21 +71,7 @@ export function TimeCenter() {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 6 }}>
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                ...pillButtonStyle,
-                backgroundImage: filter === f ? 'var(--allus-gradient)' : undefined,
-                color: filter === f ? '#0d0b16' : undefined,
-              }}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
+        <DateFilterBar value={filter} onChange={setFilter} />
 
         <div
           style={{
@@ -168,6 +155,7 @@ export function TimeCenter() {
           ))}
         </div>
       </div>
+      <ToastHost />
     </div>
   );
 }

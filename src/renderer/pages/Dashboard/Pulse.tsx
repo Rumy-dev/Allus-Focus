@@ -27,8 +27,36 @@ export function Pulse() {
 
   useEffect(() => {
     loadPulse();
-    const interval = setInterval(loadPulse, 18000); // ~15-20s
-    return () => clearInterval(interval);
+    let interval: NodeJS.Timeout | null = null;
+
+    const startPolling = () => {
+      if (interval) clearInterval(interval);
+      interval = setInterval(loadPulse, 18000);
+    };
+
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        loadPulse();
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   if (!snapshot) return <div className="allus-app-bg" style={{ height: '100%' }} />;
@@ -65,13 +93,16 @@ export function Pulse() {
   const todayHours = formatDuration(pulse.teamTodaySeconds);
   const unclassifiedHours = formatDuration(pulse.insights.unclassifiedSeconds);
   const longestBlockHours = formatDuration(pulse.insights.longestBlockSeconds);
+  const yesterdayTrend = pulse.insights.todayVsYesterdayPct;
+  const yesterdayIndicator = yesterdayTrend > 0 ? '↑' : yesterdayTrend < 0 ? '↓' : '→';
+  const yesterdayColor = yesterdayTrend > 0 ? '#4bf5e3' : yesterdayTrend < 0 ? '#ff5fae' : '#999';
 
   return (
     <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Titlebar title={`ALLUS PULSE · ${headerDate}`} />
       <div style={{ padding: 16, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Resumo Executivo */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           <div className="allus-glass" style={{ padding: 16 }}>
             <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 8 }}>FOCANDO AGORA</div>
             <div style={{ fontSize: 32, fontWeight: 700, color: '#4bf5e3', fontFamily: 'Courier New, monospace' }}>
@@ -79,7 +110,11 @@ export function Pulse() {
             </div>
           </div>
           <div className="allus-glass" style={{ padding: 16 }}>
-            <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 8 }}>HOJE (HORAS)</div>
+            <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              HOJE (HORAS)
+              <span style={{ fontSize: 14, color: yesterdayColor, fontWeight: 'bold' }}>{yesterdayIndicator}</span>
+              <span style={{ fontSize: 9, color: yesterdayColor }}>{Math.abs(yesterdayTrend)}%</span>
+            </div>
             <div style={{ fontSize: 24, fontWeight: 700, color: '#ff5fae', fontFamily: 'Courier New, monospace' }}>{todayHours}</div>
           </div>
           <div className="allus-glass" style={{ padding: 16 }}>
@@ -101,18 +136,38 @@ export function Pulse() {
         </div>
 
         {/* Grid de Radar + Insights */}
-        {(pulse.projectBudgets.length > 0 || pulse.insights.unclassifiedSeconds > 0) && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {(pulse.projectBudgets.length > 0 || pulse.insights.unclassifiedSeconds > 0 || pulse.insights.noFocusMemberIds.length > 0) && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
             {/* RADAR DE ORÇAMENTO */}
             {pulse.projectBudgets.length > 0 && (
-              <div className="allus-glass" style={{ padding: 16 }}>
+              <div className="allus-glass" style={{ padding: 16, cursor: 'pointer' }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--allus-text-muted)', marginBottom: 12 }}>RADAR DE PROJETOS</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {pulse.projectBudgets.slice(0, 3).map((proj) => (
-                    <div key={proj.projectId} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div
+                      key={proj.projectId}
+                      onClick={() => window.allus.invoke('window:openDashboard', undefined)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: 6,
+                        borderRadius: 4,
+                        transition: 'background 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--allus-text-primary)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {proj.projectName}
+                        <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--allus-text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {proj.projectName}
+                          </span>
+                          {proj.pct > 100 && <span style={{ color: '#ff5fae', fontSize: 12, fontWeight: 'bold' }}>⚠</span>}
                         </div>
                         <div
                           style={{
@@ -156,6 +211,21 @@ export function Pulse() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#ff5fae' }}>{unclassifiedHours}</div>
                   </div>
                 )}
+                {pulse.insights.noFocusMemberIds.length > 0 && (
+                  <div style={{ paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ color: 'var(--allus-text-muted)', marginBottom: 4 }}>
+                      ○ Sem bloco ({pulse.insights.noFocusMemberIds.length})
+                    </div>
+                    <div style={{ fontSize: 12, color: '#999' }}>
+                      {pulse.teamMembers
+                        .filter((m) => pulse.insights.noFocusMemberIds.includes(m.userId))
+                        .slice(0, 3)
+                        .map((m) => m.fullName)
+                        .join(', ')}
+                      {pulse.insights.noFocusMemberIds.length > 3 && ` +${pulse.insights.noFocusMemberIds.length - 3}`}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <div style={{ color: 'var(--allus-text-muted)', marginBottom: 4 }}>★ Maior foco</div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#4bf5e3' }}>{longestBlockHours}</div>
@@ -190,7 +260,26 @@ function TeamMemberRow({ member }: TeamMemberRowProps) {
   const statusDot = member.status === 'Ativo' ? '●' : member.status === 'Pausado' ? '◐' : '○';
   const statusColor = member.status === 'Ativo' ? '#4bf5e3' : member.status === 'Pausado' ? '#9b6bff' : '#555';
 
-  const displayTime = member.status !== 'offline' ? `${formatDuration(member.elapsedSeconds)} / ${formatDuration(member.plannedSeconds)}` : '—';
+  let displayTime: string;
+  if (member.status !== 'offline') {
+    displayTime = `${formatDuration(member.elapsedSeconds)} / ${formatDuration(member.plannedSeconds)}`;
+  } else if (member.lastActivityAt) {
+    const now = new Date();
+    const lastActivity = new Date(member.lastActivityAt);
+    const diffMs = now.getTime() - lastActivity.getTime();
+    const diffHours = Math.floor(diffMs / (3600 * 1000));
+    const diffMins = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
+    if (diffHours > 0) {
+      displayTime = `há ${diffHours}h`;
+    } else if (diffMins > 0) {
+      displayTime = `há ${diffMins}min`;
+    } else {
+      displayTime = 'há pouco';
+    }
+  } else {
+    displayTime = '—';
+  }
+
   const taskDisplay = member.currentTaskTitle
     ? `${member.clientName ? member.clientName + ' · ' : ''}${member.currentTaskTitle}`
     : '—';

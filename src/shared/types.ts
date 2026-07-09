@@ -247,5 +247,7 @@ export interface PulseResult {
     unclassifiedSeconds: number; // segundos de task_logs sem client_id ou project_id
     topClientPct: number; // % que o cliente top consome da equipe esta semana
     longestBlockSeconds: number; // maior bloco de foco contínuo hoje
+    todayVsYesterdayPct: number; // variação % de hoje vs ontem (ex: +18, -12, 0 se ontem foi 0)
+    noFocusMemberIds: string[]; // IDs dos membros com 0 segundos hoje e offline
   };
 }
