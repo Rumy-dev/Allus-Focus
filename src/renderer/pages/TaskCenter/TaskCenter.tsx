@@ -41,10 +41,8 @@ export function TaskCenter() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      console.log('[TaskCenter] Keyboard event:', e.key);
       if (e.key === 'Escape') {
-        console.log('[TaskCenter] ESC pressed, closing window');
-        window.allus.invoke('window:closeSelf', undefined).catch(err => console.error('[TaskCenter] closeSelf error:', err));
+        window.allus.invoke('window:closeSelf', undefined);
       }
     };
     window.addEventListener('keydown', handler);

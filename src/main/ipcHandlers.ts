@@ -149,7 +149,10 @@ export function registerIpcHandlers(): void {
     BrowserWindow.fromWebContents(event.sender)?.minimize();
   });
   ipcMain.handle('window:closeSelf', (event) => {
-    BrowserWindow.fromWebContents(event.sender)?.close();
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      win.hide();
+    }
   });
   ipcMain.handle('window:setFloatingHeight', (_event, { width, height }: { width?: number; height?: number }) => {
     if (appStore.getSnapshot().floatingPanelSizeLocked) return;
