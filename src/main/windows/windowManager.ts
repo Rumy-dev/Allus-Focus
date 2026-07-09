@@ -115,20 +115,47 @@ export function showFloatingPanel(): void {
   // Restaurar o modo (compacto ou normal)
   floatingPanelCompactMode = snapshot.floatingPanelIsCompactMode;
 
-  // Restaurar o tamanho apropriado para o modo
+  // Detectar se há sessão ativa (rodando) ou não (parado)
+  const hasActiveSession = snapshot.activeSession !== null;
+
+  // Restaurar o tamanho apropriado para o modo e estado
   let width: number;
   let height: number;
 
   if (floatingPanelCompactMode) {
     const savedCompactSize = snapshot.floatingPanelCompactSize;
-    width = savedCompactSize?.width ?? 280;
-    height = savedCompactSize?.height ?? 110;
-    console.log(`[FloatingPanel] Abrindo modo COMPACTO: ${width}×${height}px (salvo: ${savedCompactSize ? `${savedCompactSize.width}×${savedCompactSize.height}` : 'padrão'})`);
+    if (savedCompactSize) {
+      // Usuário customizou, respeitar
+      width = savedCompactSize.width;
+      height = savedCompactSize.height;
+    } else {
+      // Usar tamanho padrão baseado no estado
+      if (hasActiveSession) {
+        width = 285;  // Compacto rodando
+        height = 57;
+      } else {
+        width = 218;  // Compacto parado
+        height = 54;
+      }
+    }
+    console.log(`[FloatingPanel] Abrindo COMPACTO ${hasActiveSession ? 'RODANDO' : 'PARADO'}: ${width}×${height}px`);
   } else {
     const savedNormalSize = snapshot.floatingPanelSize;
-    width = savedNormalSize?.width ?? 280;
-    height = savedNormalSize?.height ?? 320;
-    console.log(`[FloatingPanel] Abrindo modo NORMAL: ${width}×${height}px (salvo: ${savedNormalSize ? `${savedNormalSize.width}×${savedNormalSize.height}` : 'padrão'})`);
+    if (savedNormalSize) {
+      // Usuário customizou, respeitar
+      width = savedNormalSize.width;
+      height = savedNormalSize.height;
+    } else {
+      // Usar tamanho padrão baseado no estado
+      if (hasActiveSession) {
+        width = 429;  // Normal rodando
+        height = 479;
+      } else {
+        width = 307;  // Normal parado
+        height = 390;
+      }
+    }
+    console.log(`[FloatingPanel] Abrindo NORMAL ${hasActiveSession ? 'RODANDO' : 'PARADO'}: ${width}×${height}px`);
   }
 
   const win = new BrowserWindow({
@@ -219,19 +246,50 @@ export function setFloatingPanelCompactMode(isCompact: boolean): void {
   if (!windows.floating || windows.floating.isDestroyed()) return;
 
   const snapshot = appStore.getSnapshot();
+  const hasActiveSession = snapshot.activeSession !== null;
 
   if (isCompact) {
     // Muda para tamanho do modo compacto
     const compactSize = snapshot.floatingPanelCompactSize;
-    const width = compactSize?.width ?? 280;
-    const height = compactSize?.height ?? 110;
+    let width: number;
+    let height: number;
+
+    if (compactSize) {
+      width = compactSize.width;
+      height = compactSize.height;
+    } else {
+      // Usar tamanho padrão baseado no estado
+      if (hasActiveSession) {
+        width = 285;  // Compacto rodando
+        height = 57;
+      } else {
+        width = 218;  // Compacto parado
+        height = 54;
+      }
+    }
+
     const bounds = windows.floating.getBounds();
     windows.floating.setBounds({ ...bounds, width, height });
   } else {
     // Muda para tamanho do modo normal
     const normalSize = snapshot.floatingPanelSize;
-    const width = normalSize?.width ?? 280;
-    const height = normalSize?.height ?? 320;
+    let width: number;
+    let height: number;
+
+    if (normalSize) {
+      width = normalSize.width;
+      height = normalSize.height;
+    } else {
+      // Usar tamanho padrão baseado no estado
+      if (hasActiveSession) {
+        width = 429;  // Normal rodando
+        height = 479;
+      } else {
+        width = 307;  // Normal parado
+        height = 390;
+      }
+    }
+
     const bounds = windows.floating.getBounds();
     windows.floating.setBounds({ ...bounds, width, height });
   }
