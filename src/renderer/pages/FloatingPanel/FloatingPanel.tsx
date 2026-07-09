@@ -117,6 +117,13 @@ export function FloatingPanel() {
     };
   }, [snapshot?.auth.profile?.id]);
 
+  // Quando abre modal em modo compacto, expandir a janela pra caber o modal
+  useEffect(() => {
+    if (modeSelectTask && isCompactMode) {
+      window.allus.invoke('window:setFloatingHeight', { width: 400, height: 500 });
+    }
+  }, [modeSelectTask, isCompactMode]);
+
   if (!snapshot) return <div className="allus-app-bg" style={{ height: '100%' }} />;
 
   const lastTask = snapshot.recentTasks[0]
@@ -161,13 +168,6 @@ export function FloatingPanel() {
     window.allus.invoke('window:setFloatingCompactMode', { isCompact: newValue });
     window.allus.invoke('prefs:setFloatingPanelIsCompactMode', { isCompact: newValue });
   };
-
-  // Quando abre modal em modo compacto, expandir a janela pra caber o modal
-  useEffect(() => {
-    if (modeSelectTask && isCompactMode) {
-      window.allus.invoke('window:setFloatingHeight', { width: 400, height: 500 });
-    }
-  }, [modeSelectTask, isCompactMode]);
 
   // Status badge — usa a mesma bolinha de status do resto do app (allus-status-dot)
   const statusDotStatus: 'Ativo' | 'Pausado' | 'Concluído' | 'Interrompido' = session?.status ?? 'Interrompido';
