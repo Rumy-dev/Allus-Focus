@@ -23,6 +23,7 @@ export function FloatingPanel() {
   const opacityPanelRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const wasSessionActiveRef = useRef<boolean>(false);
 
   const panelOpacity = (snapshot?.floatingPanelOpacity ?? 90) / 100;
 
@@ -123,6 +124,33 @@ export function FloatingPanel() {
       window.allus.invoke('window:setFloatingHeight', { width: 400, height: 500 });
     }
   }, [modeSelectTask, isCompactMode]);
+
+  // Redimensionar automaticamente ao iniciar/parar uma tarefa (sem customização manual)
+  useEffect(() => {
+    const isSessionActive = snapshot?.activeSession !== null && snapshot?.activeSession !== undefined;
+    const wasSessionActive = wasSessionActiveRef.current;
+
+    if (isSessionActive !== wasSessionActive) {
+      wasSessionActiveRef.current = isSessionActive;
+
+      // Só redimensiona se o usuário não tiver customizado manualmente
+      const hasCustomSize = isCompactMode ? snapshot?.floatingPanelCompactSize : snapshot?.floatingPanelSize;
+      if (!hasCustomSize) {
+        let width: number;
+        let height: number;
+
+        if (isCompactMode) {
+          width = isSessionActive ? 285 : 218;
+          height = isSessionActive ? 57 : 54;
+        } else {
+          width = isSessionActive ? 429 : 307;
+          height = isSessionActive ? 479 : 390;
+        }
+
+        window.allus.invoke('window:setFloatingHeight', { width, height });
+      }
+    }
+  }, [snapshot?.activeSession, isCompactMode, snapshot?.floatingPanelSize, snapshot?.floatingPanelCompactSize]);
 
   if (!snapshot) return <div className="allus-app-bg" style={{ height: '100%' }} />;
 
