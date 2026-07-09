@@ -9,6 +9,7 @@ export function Pulse() {
   const snapshot = useAppState();
   const [pulse, setPulse] = useState<PulseResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadPulse = async () => {
@@ -23,6 +24,12 @@ export function Pulse() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    await loadPulse();
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -93,15 +100,52 @@ export function Pulse() {
   const todayHours = formatDuration(pulse.teamTodaySeconds);
   const unclassifiedHours = formatDuration(pulse.insights.unclassifiedSeconds);
   const longestBlockHours = formatDuration(pulse.insights.longestBlockSeconds);
-  const yesterdayTrend = (pulse.insights as any).todayVsYesterdayPct ?? 0;
+  const yesterdayTrend = pulse.insights.todayVsYesterdayPct;
   const yesterdayIndicator = yesterdayTrend > 0 ? '↑' : yesterdayTrend < 0 ? '↓' : '→';
   const yesterdayColor = yesterdayTrend > 0 ? '#4bf5e3' : yesterdayTrend < 0 ? '#ff5fae' : '#999';
-  const noFocusMemberIds = (pulse.insights as any).noFocusMemberIds ?? [];
+  const noFocusMemberIds = pulse.insights.noFocusMemberIds;
 
   return (
     <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Titlebar title={`ALLUS PULSE · ${headerDate}`} />
       <div style={{ padding: 16, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Botão de atualizar manual */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 8,
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid var(--allus-glass-border)',
+              color: 'var(--allus-text-muted)',
+              fontSize: 11,
+              cursor: refreshing ? 'default' : 'pointer',
+              opacity: refreshing ? 0.6 : 1,
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                animation: refreshing ? 'spin 0.8s linear infinite' : 'none',
+              }}
+            >
+              ↻
+            </span>
+            {refreshing ? 'Atualizando...' : 'Atualizar'}
+          </button>
+          <style>{`
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+
         {/* Resumo Executivo */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           <div className="allus-glass" style={{ padding: 16 }}>
