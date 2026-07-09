@@ -83,8 +83,6 @@ export function Pulse() {
     );
   }
 
-  console.log('[Pulse] renderizando com dados:', pulse);
-
   // Formata data por extenso
   const now = new Date(pulse.generatedAt);
   const daysOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -274,19 +272,6 @@ function TeamMemberRow({ member }: TeamMemberRowProps) {
   let displayTime: string;
   if (member.status !== 'offline') {
     displayTime = `${formatDuration(member.elapsedSeconds)} / ${formatDuration(member.plannedSeconds)}`;
-  } else if (member.lastActivityAt) {
-    const now = new Date();
-    const lastActivity = new Date(member.lastActivityAt);
-    const diffMs = now.getTime() - lastActivity.getTime();
-    const diffHours = Math.floor(diffMs / (3600 * 1000));
-    const diffMins = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
-    if (diffHours > 0) {
-      displayTime = `há ${diffHours}h`;
-    } else if (diffMins > 0) {
-      displayTime = `há ${diffMins}min`;
-    } else {
-      displayTime = 'há pouco';
-    }
   } else {
     displayTime = '—';
   }

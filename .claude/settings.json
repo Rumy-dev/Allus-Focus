@@ -16,7 +16,8 @@
       "Bash(curl -s https://bnzqyqnkkbumofgcdbbr.supabase.co/rest/v1/projects?select=id,name,client_id -H 'Authorization: Bearer sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH' -H 'apikey: sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH' -H 'Content-Type: application/json')",
       "PowerShell(Get-Process | Where-Object {$_.Name -match \"electron|forge\"} | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; Write-Output \"Processos encerrados\")",
       "PowerShell(Get-Process | Where-Object {$_.Name -match \"electron|forge\"} | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; Write-Output \"Pronto\")",
-      "PowerShell(Get-Process | Where-Object {$_.Name -match \"electron|forge\"} | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 300; Write-Output \"OK\")"
+      "PowerShell(Get-Process | Where-Object {$_.Name -match \"electron|forge\"} | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 300; Write-Output \"OK\")",
+      "Bash(pkill -f \"electron-forge start\")"
     ]
   }
 }
