@@ -26,22 +26,30 @@ export function FloatingPanel() {
 
   const panelOpacity = (snapshot?.floatingPanelOpacity ?? 90) / 100;
 
-  // Listener de ESC enviado pelo main process (globalShortcut)
+  // Listener direto de ESC
   useEffect(() => {
-    const handleEscape = () => {
-      // Fechar modal primeiro, se estiver aberto
-      if (modeSelectTask) {
-        setModeSelectTask(null);
-      } else if (showProjectPicker) {
-        setShowProjectPicker(false);
-      } else if (showAdd) {
-        setShowAdd(false);
-      } else {
-        // Se nenhum modal aberto, fechar o painel
-        window.allus.invoke('window:closeSelf', undefined);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        console.log('[FloatingPanel] ESC pressed');
+        // Fechar modal primeiro, se estiver aberto
+        if (modeSelectTask) {
+          console.log('[FloatingPanel] Fechando modeSelectTask');
+          setModeSelectTask(null);
+        } else if (showProjectPicker) {
+          console.log('[FloatingPanel] Fechando showProjectPicker');
+          setShowProjectPicker(false);
+        } else if (showAdd) {
+          console.log('[FloatingPanel] Fechando showAdd');
+          setShowAdd(false);
+        } else {
+          // Se nenhum modal aberto, fechar o painel
+          console.log('[FloatingPanel] Fechando painel');
+          window.allus.invoke('window:closeSelf', undefined);
+        }
       }
     };
-    return window.allus.on('key:escape', handleEscape);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [modeSelectTask, showProjectPicker, showAdd]);
 
   useKeyboardShortcuts({
