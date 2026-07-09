@@ -187,8 +187,8 @@ export function FloatingPanel() {
   const statusDotStatus: 'Ativo' | 'Pausado' | 'Concluído' | 'Interrompido' = session?.status ?? 'Interrompido';
   const statusLabel = !session ? 'Parado' : session.status === 'Interrompido' ? 'Parado' : session.status;
 
-  async function submitAdd(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitAdd(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!text.trim()) return;
     await invokeAction('task:quickAdd', { title: text.trim(), avulsa: false });
     setText('');
@@ -374,7 +374,7 @@ export function FloatingPanel() {
               </>
             ) : (
               <button
-                onClick={() => setShowAdd(true)}
+                onClick={() => (showAdd ? submitAdd() : setShowAdd(true))}
                 style={{
                   flex: 1,
                   padding: '11px 16px',
