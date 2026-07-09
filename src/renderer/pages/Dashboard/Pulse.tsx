@@ -83,11 +83,7 @@ export function Pulse() {
     );
   }
 
-  try {
-    console.log('[Pulse] renderizando com dados:', { pulse, noFocusMemberIds: (pulse.insights as any).noFocusMemberIds });
-  } catch (e) {
-    console.error('[Pulse] erro ao logar:', e);
-  }
+  console.log('[Pulse] renderizando com dados:', pulse);
 
   // Formata data por extenso
   const now = new Date(pulse.generatedAt);
@@ -134,7 +130,9 @@ export function Pulse() {
 
         {/* EQUIPE AO VIVO */}
         <div className="allus-glass" style={{ padding: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--allus-text-muted)', marginBottom: 12 }}>EQUIPE AO VIVO</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--allus-text-muted)', marginBottom: 12 }}>
+            EQUIPE AO VIVO ({pulse.teamMembers.length})
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pulse.teamMembers.map((member) => (
               <TeamMemberRow key={member.userId} member={member} />
