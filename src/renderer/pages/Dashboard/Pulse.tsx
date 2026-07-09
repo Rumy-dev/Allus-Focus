@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
+import type { CSSProperties } from 'react';
+import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { useAppState } from '../../useAppState';
 import { Titlebar } from '../../components/Titlebar';
 import { ToastHost } from '../../components/ToastHost';
@@ -106,7 +108,17 @@ export function Pulse() {
   const noFocusMemberIds = pulse.insights.noFocusMemberIds;
 
   return (
-    <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div
+      className="allus-app-bg allus-watermark"
+      style={
+        {
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          '--allus-watermark-image': `url(${allusWatermark})`,
+        } as CSSProperties
+      }
+    >
       <Titlebar title={`ALLUS PULSE · ${headerDate}`} />
       <div style={{ padding: 16, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Botão de atualizar manual */}

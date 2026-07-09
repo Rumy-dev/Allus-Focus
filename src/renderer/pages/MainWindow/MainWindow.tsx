@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
+import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { useAppState } from '../../useAppState';
 import { ProgressRing } from '../../components/ProgressRing';
 import { Titlebar } from '../../components/Titlebar';
@@ -166,9 +168,19 @@ export function MainWindow() {
   }
 
   return (
-    <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div
+      className="allus-app-bg allus-watermark"
+      style={
+        {
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          '--allus-watermark-image': `url(${allusWatermark})`,
+        } as CSSProperties
+      }
+    >
       <Titlebar
-        title="NEURO-POMO · ALLUS CLOCK"
+        title="ALLUS FOCUS"
         subtitle="Fechar mantém o timer rodando no painel flutuante e na bandeja"
         onClose={() => window.allus.invoke('window:closeSelf', undefined)}
       />

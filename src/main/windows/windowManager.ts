@@ -1,4 +1,4 @@
-import { BrowserWindow, app } from 'electron';
+import { BrowserWindow, app, screen } from 'electron';
 import path from 'node:path';
 import type { AppSnapshot } from '../../shared/ipc-contract';
 import { appStore } from '../store/appStore';
@@ -42,7 +42,17 @@ const windows: {
   timeCenter: BrowserWindow | null;
   dashboard: BrowserWindow | null;
   pulse: BrowserWindow | null;
-} = { login: null, main: null, floating: null, taskCenter: null, timeCenter: null, dashboard: null, pulse: null };
+  splash: BrowserWindow | null;
+} = {
+  login: null,
+  main: null,
+  floating: null,
+  taskCenter: null,
+  timeCenter: null,
+  dashboard: null,
+  pulse: null,
+  splash: null,
+};
 
 function loadPage(win: BrowserWindow, page: string): void {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -138,6 +148,16 @@ function preloadPath(): string {
   return path.join(__dirname, 'preload.js');
 }
 
+function iconPath(): string {
+  // Em dev, __dirname aponta pra .vite/build; em produção, os assets vão
+  // junto via packagerConfig.extraResource (forge.config.ts). Sem passar
+  // `icon` explicitamente ao BrowserWindow, o Windows/Linux mostram o
+  // ícone padrão do Electron em vez da logo do Allus Focus.
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'assets', 'icon.png')
+    : path.join(__dirname, '..', '..', 'assets', 'icon.png');
+}
+
 function hideInsteadOfClose(win: BrowserWindow): void {
   win.on('close', (event) => {
     if (!isQuitting) {
@@ -159,6 +179,7 @@ export function showLogin(): void {
     resizable: false,
     frame: false,
     transparent: true,
+    icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
   loadPage(win, 'login');
@@ -171,6 +192,68 @@ export function showLogin(): void {
 export function closeLogin(): void {
   windows.login?.close();
   windows.login = null;
+}
+
+const SPLASH_WIDTH = 360;
+const SPLASH_HEIGHT = 280;
+
+export function showSplash(onShown?: () => void): void {
+  if (windows.splash && !windows.splash.isDestroyed()) return;
+
+  // Centralizada no monitor PRIMÁRIO (não no monitor com o cursor) — é o
+  // comportamento esperado de abertura de app, independente de onde o
+  // usuário deixou o mouse antes de clicar no atalho.
+  const { bounds } = screen.getPrimaryDisplay();
+  const x = Math.round(bounds.x + (bounds.width - SPLASH_WIDTH) / 2);
+  const y = Math.round(bounds.y + (bounds.height - SPLASH_HEIGHT) / 2);
+
+  const win = new BrowserWindow({
+    width: SPLASH_WIDTH,
+    height: SPLASH_HEIGHT,
+    x,
+    y,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    closable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    hasShadow: false,
+    show: false,
+    webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
+  });
+  win.setAlwaysOnTop(true, 'screen-saver');
+  // show só depois de 'ready-to-show': evita o flash preto de um frame que
+  // Electron/Chromium pintam antes do primeiro paint transparente chegar.
+  // onShown() é o sinal pro chamador começar a contar a duração da
+  // animação a partir da hora em que ela FICOU VISÍVEL — em dev mode o
+  // carregamento via Vite dev server pode levar centenas de ms a mais que
+  // em produção, e contar a partir da criação da janela cortava a
+  // animação cedo demais (o "orçamento" de tempo era consumido antes do
+  // primeiro frame aparecer).
+  win.once('ready-to-show', () => {
+    win.show();
+    onShown?.();
+  });
+  win.on('closed', () => {
+    windows.splash = null;
+  });
+  loadPage(win, 'splash');
+  windows.splash = win;
+}
+
+export function closeSplash(): void {
+  const win = windows.splash;
+  if (!win || win.isDestroyed()) return;
+  windows.splash = null;
+  // destroy() em vez de close(): a janela não tem controles de fechar
+  // (closable:false) e não precisamos do ciclo normal de eventos 'close'.
+  win.destroy();
 }
 
 export function showMainWindow(): void {
@@ -186,6 +269,7 @@ export function showMainWindow(): void {
     minHeight: 560,
     frame: false,
     transparent: true,
+    icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
   loadPage(win, 'main');
@@ -233,6 +317,7 @@ export function showFloatingPanel(): void {
     y: undefined,
     frame: false,
     transparent: true,
+    icon: iconPath(),
     resizable: !sizeLocked,
     minWidth: 100,
     minHeight: 110,
@@ -327,6 +412,7 @@ export function showTaskCenter(): void {
     minHeight: 480,
     frame: false,
     transparent: true,
+    icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
   loadPage(win, 'taskCenter');
@@ -350,6 +436,7 @@ export function showTimeCenter(): void {
     minHeight: 480,
     frame: false,
     transparent: true,
+    icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
   loadPage(win, 'timeCenter');
@@ -373,6 +460,7 @@ export function showDashboard(): void {
     minHeight: 600,
     frame: false,
     transparent: true,
+    icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
   loadPage(win, 'dashboard');
@@ -396,6 +484,7 @@ export function showPulse(): void {
     minHeight: 600,
     frame: false,
     transparent: true,
+    icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
   loadPage(win, 'pulse');

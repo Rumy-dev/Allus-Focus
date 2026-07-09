@@ -1,0 +1,150 @@
+html,
+body {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+.splash {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: transparent;
+  pointer-events: none;
+  -webkit-app-region: no-drag;
+  animation:
+    splash-container-in 0.4s ease-out forwards,
+    splash-fade-out 0.6s ease-in forwards 2.9s;
+}
+
+.splash__logo {
+  width: 132px;
+  height: 132px;
+  filter: drop-shadow(0 0 14px rgba(236, 220, 1, 0.35));
+  animation: splash-pulse 0.6s ease-in-out forwards 1.8s;
+}
+
+.splash__dot {
+  transform-origin: 256px 270px;
+  opacity: 0;
+  animation: splash-dot-in 0.4s ease-out forwards 0s;
+}
+
+.splash__arc-inner {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  opacity: 0;
+  animation: splash-arc-draw 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards 0.4s;
+}
+
+.splash__arc-outer {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  opacity: 0;
+  animation: splash-arc-draw 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards 1s;
+}
+
+.splash__wordmark {
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translateY(8px);
+  animation: splash-text-in 0.8s ease-out forwards 2.1s;
+}
+
+.splash__wordmark-allus {
+  color: #fafafa;
+}
+
+.splash__wordmark-focus {
+  color: #ecdc01;
+}
+
+@keyframes splash-container-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes splash-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes splash-dot-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splash-arc-draw {
+  from {
+    stroke-dashoffset: 100;
+    opacity: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes splash-pulse {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 14px rgba(236, 220, 1, 0.35));
+  }
+  50% {
+    transform: scale(1.045);
+    filter: drop-shadow(0 0 26px rgba(236, 220, 1, 0.6));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 14px rgba(236, 220, 1, 0.35));
+  }
+}
+
+@keyframes splash-text-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Acessibilidade: sem traçados progressivos nem pulsação — só fade simples
+   com a logo completa já visível, como pedido no roteiro de reduced-motion. */
+.splash--reduced .splash__dot,
+.splash--reduced .splash__arc-inner,
+.splash--reduced .splash__arc-outer,
+.splash--reduced .splash__logo,
+.splash--reduced .splash__wordmark {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  stroke-dashoffset: 0 !important;
+  filter: none !important;
+}
+
+.splash--reduced {
+  animation: splash-fade-out 0.4s ease-in forwards 1s;
+}

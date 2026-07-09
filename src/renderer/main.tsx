@@ -7,6 +7,7 @@ import { TaskCenter } from './pages/TaskCenter/TaskCenter';
 import { TimeCenter } from './pages/TimeCenter/TimeCenter';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { Pulse } from './pages/Dashboard/Pulse';
+import { Splash } from './pages/Splash/Splash';
 import './styles/index.css';
 
 const params = new URLSearchParams(window.location.search);
@@ -20,6 +21,7 @@ const pages: Record<string, ComponentType> = {
   timeCenter: TimeCenter,
   dashboard: Dashboard,
   pulse: Pulse,
+  splash: Splash,
 };
 
 const Page = pages[page] ?? MainWindow;

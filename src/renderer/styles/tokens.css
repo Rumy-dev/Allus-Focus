@@ -50,6 +50,21 @@
   overflow: hidden;
 }
 
+/* Marca d'água discreta do símbolo oficial — reservada às telas "de
+   respiro" (MainWindow, Dashboard, Pulse); telas utilitárias pequenas
+   (painel flutuante, TaskCenter, TimeCenter) ficam sem, pra não competir
+   com o pouco espaço disponível. A opacidade já vem embutida no próprio
+   SVG (allus-focus-watermark.svg); a imagem entra via
+   --allus-watermark-image, setada inline pelo componente. */
+.allus-app-bg.allus-watermark {
+  background:
+    var(--allus-watermark-image) no-repeat 100% 100% / 300px 300px,
+    radial-gradient(circle at 15% 10%, rgba(236, 220, 1, 0.16), transparent 45%),
+    radial-gradient(circle at 85% 20%, rgba(184, 172, 0, 0.14), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%),
+    var(--allus-bg-1);
+}
+
 .allus-titlebar {
   -webkit-app-region: drag;
   border-radius: var(--allus-radius-lg);

@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
+import type { CSSProperties } from 'react';
+import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { useAppState } from '../../useAppState';
 import { invokeAction } from '../../invoke';
 import { Titlebar } from '../../components/Titlebar';
@@ -190,7 +192,17 @@ export function Dashboard() {
   if (!snapshot) return <div className="allus-app-bg" style={{ height: '100%' }} />;
 
   return (
-    <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div
+      className="allus-app-bg allus-watermark"
+      style={
+        {
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          '--allus-watermark-image': `url(${allusWatermark})`,
+        } as CSSProperties
+      }
+    >
       <Titlebar title="PAINEL DO GESTOR" />
       <div style={{ padding: 16, flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Resumo Executivo */}

@@ -28,9 +28,78 @@ app.on('before-quit', () => windowManager.setQuitting(true));
 let wasSignedIn = false;
 let wasOnline = true;
 
+// Splash de abertura: roda em paralelo à resolução do auth, nunca fica
+// presa esperando por um evento assíncrono. `closeSplashAndReveal` corre
+// contra um timeout de segurança (SPLASH_TIMEOUT_MS) — se a janela alvo
+// demorar mais que isso, a splash fecha de qualquer forma e a janela
+// aparece assim que puder, no lugar de travar a abertura do app.
+// Mantida em sincronia manual com SPLASH_DURATION_MS em
+// src/renderer/pages/Splash/Splash.tsx (não importamos direto do renderer
+// pra não puxar React/CSS pro bundle do processo main).
+const SPLASH_DURATION_MS = 3400;
+const SPLASH_TIMEOUT_MS = 4500;
+let splashClosed = false;
+let splashStartedAt = 0;
+// A janela da splash carrega de forma assíncrona (mais lenta em dev, via
+// Vite dev server) — se o auth resolver antes do 'ready-to-show' disparar,
+// closeSplashAndReveal ainda não tem um splashStartedAt válido. Em vez de
+// fechar na hora (cortando a animação antes dela sequer começar), guardamos
+// o pedido de revelação e o disparamos quando a splash ficar pronta.
+let pendingReveal: (() => void) | null = null;
+
+function scheduleReveal(showTarget: () => void): void {
+  splashClosed = true;
+  const elapsed = Date.now() - splashStartedAt;
+  const remaining = Math.max(0, SPLASH_DURATION_MS - elapsed);
+  setTimeout(() => {
+    try {
+      windowManager.closeSplash();
+    } finally {
+      showTarget();
+    }
+  }, remaining);
+}
+
+function closeSplashAndReveal(showTarget: () => void): void {
+  if (splashClosed) {
+    showTarget();
+    return;
+  }
+  if (splashStartedAt === 0) {
+    pendingReveal = showTarget;
+    return;
+  }
+  scheduleReveal(showTarget);
+}
+
 app.whenReady().then(async () => {
   registerIpcHandlers();
   appStore.patch({ autoLaunchEnabled: app.getLoginItemSettings().openAtLogin });
+
+  // splashStartedAt só é marcado quando a janela fica de fato visível
+  // (ready-to-show) — ver comentário em windowManager.showSplash. Contar a
+  // partir da criação da janela subtraía o tempo de carregamento do
+  // renderer (mais alto em dev) do orçamento da animação.
+  windowManager.showSplash(() => {
+    splashStartedAt = Date.now();
+    if (pendingReveal) {
+      const reveal = pendingReveal;
+      pendingReveal = null;
+      scheduleReveal(reveal);
+    }
+  });
+  // Rede de segurança: nenhuma splash deve poder ficar presa na tela para
+  // sempre se algo no fluxo de auth/IPC falhar silenciosamente (inclusive se
+  // a janela nunca chegar a disparar 'ready-to-show'). Contada a partir do
+  // início do app (não do ready-to-show) — é um teto absoluto.
+  setTimeout(() => {
+    if (!splashClosed) {
+      splashClosed = true;
+      windowManager.closeSplash();
+      pendingReveal?.();
+      pendingReveal = null;
+    }
+  }, SPLASH_TIMEOUT_MS);
 
   appStore.subscribe((snapshot) => {
     windowManager.broadcast(snapshot);
@@ -69,8 +138,10 @@ app.whenReady().then(async () => {
         await timerEngine.loadMostUsedTasks();
         await timerEngine.hydrateActiveSession();
         taskStore.subscribeRealtime();
-        windowManager.showMainWindow();
-        windowManager.showFloatingPanel();
+        closeSplashAndReveal(() => {
+          windowManager.showMainWindow();
+          windowManager.showFloatingPanel();
+        });
         tray.initTray();
       }
     } else {
@@ -85,7 +156,7 @@ app.whenReady().then(async () => {
   // nesse caso. Só precisamos abrir a tela de Login quando não há sessão.
   const initialState = await authManager.init();
   if (initialState.status !== 'signedIn') {
-    windowManager.showLogin();
+    closeSplashAndReveal(() => windowManager.showLogin());
   }
 
   // Atalhos de teclado (F12, Cmd/Ctrl+T/H/D/P/F/B) são escopados por janela
