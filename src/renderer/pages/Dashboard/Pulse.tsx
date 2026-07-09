@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAppState } from '../../useAppState';
-import { invokeAction } from '../../invoke';
 import { Titlebar } from '../../components/Titlebar';
 import { ToastHost } from '../../components/ToastHost';
 import type { PulseResult, PulseTeamMember } from '../../../shared/types';
@@ -15,8 +14,8 @@ export function Pulse() {
   const loadPulse = async () => {
     try {
       setError(null);
-      const result = await invokeAction('pulse:query', undefined);
-      setPulse(result ?? null);
+      const result = await window.allus.invoke('pulse:query', undefined);
+      setPulse(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
