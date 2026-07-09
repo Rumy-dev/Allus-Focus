@@ -28,9 +28,12 @@ export function FloatingPanel() {
 
   // Listener direto de ESC
   useEffect(() => {
+    console.log('[FloatingPanel] Registrando listener de ESC');
     const handleKeyDown = (e: KeyboardEvent) => {
+      console.log('[FloatingPanel] Keydown event:', e.key);
       if (e.key === 'Escape') {
-        console.log('[FloatingPanel] ESC pressed');
+        console.log('[FloatingPanel] ESC pressed!');
+        e.preventDefault();
         // Fechar modal primeiro, se estiver aberto
         if (modeSelectTask) {
           console.log('[FloatingPanel] Fechando modeSelectTask');
@@ -44,12 +47,20 @@ export function FloatingPanel() {
         } else {
           // Se nenhum modal aberto, fechar o painel
           console.log('[FloatingPanel] Fechando painel');
-          window.allus.invoke('window:closeSelf', undefined);
+          window.allus.invoke('window:closeSelf', undefined).then(() => {
+            console.log('[FloatingPanel] Painel fechado');
+          }).catch(err => {
+            console.error('[FloatingPanel] Erro ao fechar painel:', err);
+          });
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    console.log('[FloatingPanel] Listener registrado');
+    return () => {
+      console.log('[FloatingPanel] Removendo listener de ESC');
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [modeSelectTask, showProjectPicker, showAdd]);
 
   useKeyboardShortcuts({
