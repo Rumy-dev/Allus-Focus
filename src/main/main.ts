@@ -87,6 +87,14 @@ app.whenReady().then(async () => {
   }
 
   // Registrar atalhos globais de teclado
+  // F12: abrir DevTools
+  globalShortcut.register('F12', () => {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (focusedWindow) {
+      focusedWindow.webContents.toggleDevTools();
+    }
+  });
+
   // ESC: fechar o painel flutuante (o modal de ciclo é fechado pelo renderer)
   globalShortcut.register('Escape', () => {
     const focusedWindow = BrowserWindow.getFocusedWindow();
