@@ -1,0 +1,53 @@
+:root {
+  --allus-bg-1: #0d0b16;
+  --allus-bg-2: #150f24;
+  --allus-pink: #ff5fae;
+  --allus-cyan: #4bf5e3;
+  --allus-purple: #9b6bff;
+  --allus-gradient: linear-gradient(135deg, var(--allus-pink), var(--allus-purple) 55%, var(--allus-cyan));
+  --allus-glass-bg: rgba(255, 255, 255, 0.06);
+  --allus-glass-border: rgba(255, 255, 255, 0.14);
+  --allus-glass-blur: blur(22px);
+  --allus-text-primary: #f5f3ff;
+  --allus-text-secondary: rgba(245, 243, 255, 0.62);
+  --allus-text-muted: rgba(245, 243, 255, 0.4);
+  --allus-radius-lg: 20px;
+  --allus-radius-md: 14px;
+  --allus-radius-sm: 8px;
+  --allus-status-ativo: #4bf5e3;
+  --allus-status-pausado: #ffd166;
+  --allus-status-concluido: #7ef29b;
+  --allus-status-interrompido: #ff6b6b;
+  --allus-font: 'Segoe UI', 'SF Pro Rounded', system-ui, sans-serif;
+  --allus-font-mono: 'Cascadia Mono', 'SF Mono', ui-monospace, monospace;
+}
+
+.allus-glass {
+  background: var(--allus-glass-bg);
+  border: 1px solid var(--allus-glass-border);
+  border-radius: var(--allus-radius-lg);
+  backdrop-filter: var(--allus-glass-blur);
+  -webkit-backdrop-filter: var(--allus-glass-blur);
+}
+
+.allus-app-bg {
+  background:
+    radial-gradient(circle at 15% 10%, rgba(255, 95, 174, 0.25), transparent 45%),
+    radial-gradient(circle at 85% 20%, rgba(75, 245, 227, 0.18), transparent 40%),
+    radial-gradient(circle at 50% 90%, rgba(155, 107, 255, 0.25), transparent 50%),
+    var(--allus-bg-1);
+}
+
+.allus-titlebar {
+  -webkit-app-region: drag;
+}
+
+.allus-titlebar button,
+.allus-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.allus-status-dot[data-status='Ativo'] { background: var(--allus-status-ativo); }
+.allus-status-dot[data-status='Pausado'] { background: var(--allus-status-pausado); }
+.allus-status-dot[data-status='Concluído'] { background: var(--allus-status-concluido); }
+.allus-status-dot[data-status='Interrompido'] { background: var(--allus-status-interrompido); }

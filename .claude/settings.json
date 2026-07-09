@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://bnzqyqnkkbumofgcdbbr.supabase.co/rest/v1/clients?select=id,name\" -H \"apikey: sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH\")",
+      "Bash(curl -s \"https://bnzqyqnkkbumofgcdbbr.supabase.co/rest/v1/clients?select=id,name\" -H \"apikey: sb_publishable_9W57UwkKGr1aPJ2_xNsR9w_TYGDuRXH\")",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
