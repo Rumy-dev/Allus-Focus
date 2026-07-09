@@ -63,7 +63,7 @@ export async function queryPulse(): Promise<PulseResult> {
   // 3. Task logs de hoje para total de horas por pessoa
   const { data: todayTaskLogs, error: todayLogsError } = await supabase
     .from('task_logs')
-    .select('user_id, elapsed_seconds, active_task_log_id, task_id, project_id, client_id, task_title, session_id, started_at')
+    .select('id, user_id, elapsed_seconds, task_id, project_id, client_id, task_title, session_id, started_at')
     .gte('started_at', todayStart)
     .lte('started_at', todayEnd);
 
@@ -117,7 +117,7 @@ export async function queryPulse(): Promise<PulseResult> {
     let projectName: string | null = null;
 
     if (session?.activeTaskLogId) {
-      const activeLog = todayLogs.find((l) => l.active_task_log_id === session.activeTaskLogId);
+      const activeLog = todayLogs.find((l) => l.id === session.activeTaskLogId);
       if (activeLog) {
         currentTaskTitle = activeLog.task_title;
         clientName = activeLog.client_id ? clientMap.get(activeLog.client_id) ?? null : null;
