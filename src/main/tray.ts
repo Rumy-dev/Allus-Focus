@@ -1,4 +1,5 @@
 import { Menu, Tray, app, nativeImage } from 'electron';
+import path from 'node:path';
 import { appStore } from './store/appStore';
 import * as timerEngine from './store/timerEngine';
 import * as windowManager from './windows/windowManager';
@@ -8,11 +9,17 @@ import type { PomoMode } from '../shared/types';
 
 let tray: Tray | null = null;
 
-// TODO(fase 2): trocar por um ícone de verdade (asset .png/.ico). Por
-// enquanto usamos uma imagem vazia — funciona, mas fica "invisível" na
-// bandeja em alguns temas do Windows.
+function assetsDir(): string {
+  // Em dev, __dirname aponta pra .vite/build; em produção, os assets vão
+  // junto via packagerConfig.extraResource (forge.config.ts).
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'assets')
+    : path.join(__dirname, '..', '..', 'assets');
+}
+
 function trayIcon() {
-  return nativeImage.createEmpty();
+  const image = nativeImage.createFromPath(path.join(assetsDir(), 'icon.png'));
+  return image.resize({ width: 32, height: 32 });
 }
 
 export function initTray(): void {
@@ -31,6 +38,8 @@ export function destroyTray(): void {
 export function render(): void {
   if (!tray) return;
   const snapshot = appStore.getSnapshot();
+  const authState = authManager.getState();
+  const isAdmin = authState.status === 'signedIn' && authState.profile.role === 'admin';
   const session = snapshot.activeSession;
   const timeLabel = session ? formatDuration(Math.max(0, session.plannedSeconds - session.elapsedSeconds)) : '--:--';
 
@@ -62,6 +71,7 @@ export function render(): void {
     { label: 'Abrir Allus Clock', click: () => windowManager.showMainWindow() },
     { label: 'Central de Tarefas', click: () => windowManager.showTaskCenter() },
     { label: 'Central de Tempos', click: () => windowManager.showTimeCenter() },
+    ...(isAdmin ? [{ label: 'Allus Pulse', click: () => windowManager.showPulse() }] : []),
     { type: 'separator' },
     {
       label: 'Sair da conta',

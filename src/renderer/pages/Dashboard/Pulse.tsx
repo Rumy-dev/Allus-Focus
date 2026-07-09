@@ -16,7 +16,7 @@ export function Pulse() {
     try {
       setError(null);
       const result = await invokeAction('pulse:query', undefined);
-      setPulse(result);
+      setPulse(result ?? null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -96,13 +96,7 @@ export function Pulse() {
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--allus-text-muted)', marginBottom: 12 }}>EQUIPE AO VIVO</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {pulse.teamMembers.map((member) => (
-              <TeamMemberRow
-                key={member.userId}
-                member={member}
-                onStatusChange={(prev) => {
-                  previousStatusRef.current.set(member.userId, prev);
-                }}
-              />
+              <TeamMemberRow key={member.userId} member={member} />
             ))}
           </div>
         </div>

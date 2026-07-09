@@ -15,6 +15,8 @@ export function MainWindow() {
   const snapshot = useAppState();
   const [sessions, setSessions] = useState<PomoSession[]>([]);
   const [sessionFilter, setSessionFilter] = useState<SessionDateFilter>('Todas');
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 20;
   const [quickAddText, setQuickAddText] = useState('');
   const [avulsa, setAvulsa] = useState(false);
   const [quickAddSaving, setQuickAddSaving] = useState(false);
@@ -23,8 +25,12 @@ export function MainWindow() {
   const [onboardSaving, setOnboardSaving] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [nameField, setNameField] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [myHoursSeconds, setMyHoursSeconds] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +42,24 @@ export function MainWindow() {
     };
   }, [sessionFilter, snapshot?.activeSession?.id, snapshot?.activeSession?.status]);
 
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [sessionFilter]);
+
+  useEffect(() => {
+    if (!showAccount || !snapshot?.auth.profile) return;
+    let cancelled = false;
+    invokeAction('report:query', { range: { filter: '7 dias' } }).then((result) => {
+      if (cancelled || !result) return;
+      const me = result.people.find((p) => p.userId === snapshot.auth.profile!.id);
+      const seconds = me ? me.clients.reduce((sum, c) => sum + c.totalSeconds, 0) : 0;
+      setMyHoursSeconds(seconds);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showAccount, snapshot?.auth.profile?.id]);
+
   useKeyboardShortcuts({
     onPlayPause: () => invokeAction('timer:playPause', undefined),
     onEscape: () => {
@@ -43,6 +67,10 @@ export function MainWindow() {
       setShowAccount(false);
     },
   });
+
+  useEffect(() => {
+    if (snapshot?.auth.profile) setNameField(snapshot.auth.profile.fullName);
+  }, [snapshot?.auth.profile?.fullName]);
 
   if (!snapshot) {
     return <div className="allus-app-bg" style={{ height: '100%' }} />;
@@ -74,7 +102,7 @@ export function MainWindow() {
     e.preventDefault();
     if (!onboardClient.trim() || !onboardProject.trim()) return;
     setOnboardSaving(true);
-    await invokeAction('project:add', { clientName: onboardClient.trim(), projectName: onboardProject.trim() });
+    await invokeAction('project:add', { clientName: onboardClient.trim(), projectName: onboardProject.trim(), type: '' });
     setOnboardSaving(false);
     setOnboardClient('');
     setOnboardProject('');
@@ -88,8 +116,17 @@ export function MainWindow() {
     setPasswordSaving(false);
     if (result?.ok) {
       setNewPassword('');
+      setShowPasswordForm(false);
       setShowAccount(false);
     }
+  }
+
+  async function submitNameChange(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nameField.trim()) return;
+    setNameSaving(true);
+    await invokeAction('account:updateName', { fullName: nameField.trim() });
+    setNameSaving(false);
   }
 
   async function handleDeleteSession(sessionId: string) {
@@ -116,26 +153,170 @@ export function MainWindow() {
             👤 {snapshot.auth.profile?.fullName ?? 'Conta'}
           </button>
           {showAccount && (
-            <div className="allus-glass" style={{ position: 'absolute', right: 0, marginTop: 6, padding: 12, width: 240, zIndex: 60 }}>
-              <div style={{ fontSize: 12, color: 'var(--allus-text-muted)', marginBottom: 8 }}>Trocar senha</div>
-              <form onSubmit={submitPasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Nova senha (mín. 6 caracteres)"
-                  style={inputStyle}
-                />
-                <button type="submit" style={pillButtonStyle} disabled={passwordSaving}>
-                  {passwordSaving ? 'Salvando...' : 'Salvar nova senha'}
+            <div
+              className="allus-glass"
+              style={{ position: 'absolute', right: 0, marginTop: 6, padding: 14, width: 280, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-5)', maxHeight: '80vh', overflowY: 'auto' }}
+            >
+              {/* Bloco: Perfil */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)' }}>
+                <div style={sectionHeadingStyle}>Perfil</div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>Nome de exibição</div>
+                  <form onSubmit={submitNameChange} style={{ display: 'flex', gap: 6 }}>
+                    <input value={nameField} onChange={(e) => setNameField(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+                    <button type="submit" style={pillButtonStyle} disabled={nameSaving}>
+                      {nameSaving ? '...' : 'Salvar'}
+                    </button>
+                  </form>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>Modo padrão</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {(Object.keys(POMO_MODES) as PomoMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => invokeAction('timer:setMode', { mode })}
+                        style={{
+                          ...pillButtonStyle,
+                          backgroundImage: snapshot.selectedMode === mode ? 'var(--allus-gradient)' : undefined,
+                          color: snapshot.selectedMode === mode ? '#0d0b16' : undefined,
+                          fontSize: 11,
+                        }}
+                      >
+                        {POMO_MODES[mode].title}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco: Minhas Horas */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-2)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
+                <div style={sectionHeadingStyle}>Minhas horas</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#4bf5e3', fontFamily: 'var(--allus-font-mono)' }}>
+                  {myHoursSeconds === null ? '...' : formatHoursSummary(myHoursSeconds)}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>Últimos 7 dias</div>
+                <button
+                  style={{ ...pillButtonStyle, alignSelf: 'flex-start', fontSize: 11 }}
+                  onClick={() => window.allus.invoke('window:openTimeCenter', undefined)}
+                >
+                  Ver histórico completo →
                 </button>
-              </form>
-              <button
-                style={{ ...pillButtonStyle, marginTop: 8, width: '100%' }}
-                onClick={() => invokeAction('auth:signOut', undefined)}
-              >
-                Sair da conta
-              </button>
+              </div>
+
+              {/* Bloco: Preferências */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
+                <div style={sectionHeadingStyle}>Preferências</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={snapshot.soundEnabled}
+                      onChange={(e) => invokeAction('prefs:setSound', { enabled: e.target.checked })}
+                    />
+                    Som ao concluir bloco
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={snapshot.floatingMinimizable}
+                      onChange={(e) => invokeAction('prefs:setFloatingMinimizable', { enabled: e.target.checked })}
+                    />
+                    Painel flutuante minimiza com a janela principal
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={snapshot.autoLaunchEnabled}
+                      onChange={(e) => invokeAction('prefs:setAutoLaunch', { enabled: e.target.checked })}
+                    />
+                    Iniciar automaticamente com o Windows
+                  </label>
+                </div>
+
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>Notificações</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={snapshot.auth.profile?.preferences.notifyFocusStart ?? true}
+                        onChange={(e) => invokeAction('prefs:setNotify', { event: 'focusStart', enabled: e.target.checked })}
+                      />
+                      Início de bloco de foco
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={snapshot.auth.profile?.preferences.notifyFocusEnd ?? true}
+                        onChange={(e) => invokeAction('prefs:setNotify', { event: 'focusEnd', enabled: e.target.checked })}
+                      />
+                      Fim de foco (início da pausa)
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                      <input
+                        type="checkbox"
+                        checked={snapshot.auth.profile?.preferences.notifyBreakEnd ?? true}
+                        onChange={(e) => invokeAction('prefs:setNotify', { event: 'breakEnd', enabled: e.target.checked })}
+                      />
+                      Fim de pausa
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloco: Conta */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
+                <div style={sectionHeadingStyle}>Conta</div>
+
+                {!showPasswordForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordForm(true)}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--allus-text-secondary)', fontSize: 12, cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                  >
+                    Alterar senha
+                  </button>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>Nova senha</div>
+                    <form onSubmit={submitPasswordChange} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input
+                        autoFocus
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Nova senha (mín. 6 caracteres)"
+                        style={inputStyle}
+                      />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button type="submit" style={{ ...pillButtonStyle, flex: 1 }} disabled={passwordSaving}>
+                          {passwordSaving ? 'Salvando...' : 'Salvar nova senha'}
+                        </button>
+                        <button
+                          type="button"
+                          style={pillButtonStyle}
+                          onClick={() => {
+                            setShowPasswordForm(false);
+                            setNewPassword('');
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <button
+                  style={{ ...pillButtonStyle, width: '100%', color: 'var(--allus-status-interrompido)' }}
+                  onClick={() => invokeAction('auth:signOut', undefined)}
+                >
+                  Sair da conta
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -262,12 +443,29 @@ export function MainWindow() {
             ))}
           </div>
 
-          <div className="allus-no-drag" style={{ position: 'relative', width: 'fit-content' }}>
+          <div className="allus-no-drag" style={{ position: 'relative' }}>
             <button
               onClick={() => setShowProjectPicker((v) => !v)}
-              style={{ fontSize: 11, color: 'var(--allus-text-muted)', background: 'none', border: 'none', padding: 0 }}
+              style={{
+                fontSize: 12,
+                color: 'var(--allus-text-primary)',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid var(--allus-glass-border)',
+                borderRadius: 8,
+                padding: '6px 10px',
+                width: '100%',
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
             >
-              DESTINO: {destinoLabel} ▾
+              <span>
+                <span style={{ color: 'var(--allus-text-muted)', fontSize: 10 }}>Tarefas vão para: </span>
+                <strong>{destinoLabel}</strong>
+              </span>
+              <span>▾</span>
             </button>
             {showProjectPicker && (
               <ProjectPicker
@@ -315,6 +513,23 @@ export function MainWindow() {
             >
               📊
             </button>
+            <button
+              type="button"
+              style={pillButtonStyle}
+              onClick={() => window.allus.invoke('window:openDashboard', undefined)}
+            >
+              📈
+            </button>
+            {snapshot?.auth.profile?.role === 'admin' && (
+              <button
+                type="button"
+                style={pillButtonStyle}
+                title="Allus Pulse"
+                onClick={() => window.allus.invoke('window:openPulse', undefined)}
+              >
+                💠
+              </button>
+            )}
           </form>
         </section>
 
@@ -325,11 +540,14 @@ export function MainWindow() {
             <div style={{ flex: 1 }} />
             <DateFilterBar value={sessionFilter} onChange={setSessionFilter} />
           </div>
-          <div style={{ maxHeight: 190, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {sessions.length === 0 && (
-              <div style={{ fontSize: 13, color: 'var(--allus-text-muted)' }}>Nenhum bloco neste período.</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '20px 0', color: 'var(--allus-text-muted)' }}>
+                <div style={{ fontSize: 24 }}>🗒️</div>
+                <div style={{ fontSize: 13 }}>Nenhum bloco neste período.</div>
+              </div>
             )}
-            {sessions.map((s) => (
+            {sessions.slice(0, historyPage * HISTORY_PAGE_SIZE).map((s) => (
               <div
                 key={s.id}
                 style={{
@@ -364,6 +582,14 @@ export function MainWindow() {
                 </span>
               </div>
             ))}
+            {sessions.length > historyPage * HISTORY_PAGE_SIZE && (
+              <button
+                style={{ ...pillButtonStyle, alignSelf: 'center', marginTop: 4 }}
+                onClick={() => setHistoryPage((p) => p + 1)}
+              >
+                Carregar mais
+              </button>
+            )}
           </div>
         </section>
       </div>
@@ -390,22 +616,9 @@ export function MainWindow() {
           {skipLabel}
         </button>
         <div style={{ flex: 1 }} />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-          <input
-            type="checkbox"
-            checked={snapshot.soundEnabled}
-            onChange={(e) => invokeAction('prefs:setSound', { enabled: e.target.checked })}
-          />
-          Som
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-          <input
-            type="checkbox"
-            checked={snapshot.floatingMinimizable}
-            onChange={(e) => invokeAction('prefs:setFloatingMinimizable', { enabled: e.target.checked })}
-          />
-          Minimizável
-        </label>
+        <span style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>
+          Som e outras preferências: botão "Conta" no topo
+        </span>
       </div>
       <ToastHost />
     </div>
@@ -420,6 +633,20 @@ const inputStyle: React.CSSProperties = {
   color: 'var(--allus-text-primary)',
   outline: 'none',
   fontSize: 13,
+};
+
+function formatHoursSummary(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  return `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
+const sectionHeadingStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--allus-text-muted)',
 };
 
 const pillButtonStyle: React.CSSProperties = {
