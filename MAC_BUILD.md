@@ -1,89 +1,81 @@
 # Build Allus Clock para macOS
 
-## Overview
-O Allus Clock está configurado para gerar builds para macOS (.dmg) via Electron Forge. Como estamos desenvolvendo no Windows, o build para macOS requer uma máquina com macOS ou CI/CD com suporte a macOS.
+## Status atual
+✅ Configuração de build pronta (MakerDMG, entitlements, Info.plist)
+✅ v0.1.0 gerada localmente por Pedro (Mac Apple Silicon) e publicada em
+   [GitHub Releases](https://github.com/Rumy-dev/allus-clock/releases)
+⚠️ GitHub Actions **não funciona nesta conta** — ver seção abaixo
 
-## Configuração realizada
+## Por que não usamos CI/CD (GitHub Actions)
 
-✅ **Instalado:**
-- `@electron-forge/maker-dmg` — gera instaladores .dmg (formato padrão macOS)
-- Arquivo de entitlements (`assets/entitlements.plist`) — permissões do app
-- Arquivo Info.plist extendido (`assets/info.plist`) — configurações macOS
+Tentamos configurar `.github/workflows/build-mac.yml` pra buildar automaticamente
+em runner macOS gratuito do GitHub, mas a conta usada pra criar o repositório
+(`Rumy-dev`) é muito nova e o GitHub bloqueia silenciosamente o acesso a runners
+macOS/Windows (que custam 10x mais que Linux) em contas recém-criadas, como
+proteção antiabuso. Confirmado via API: um workflow idêntico rodando em
+`ubuntu-latest` foi aceito normalmente; o mesmo com `runs-on: macos-latest`
+nunca apareceu na lista de workflows, mesmo com o repositório público.
 
-✅ **forge.config.ts atualizado:**
-- MakerDMG configurado com layout padrão (app + link para Applications)
-- osxSign habilitado (pronto para assinatura, sem certificado por enquanto)
+O arquivo `.github/workflows/build-mac.yml` continua no repositório — quando a
+conta acumular mais tempo/atividade (ou você abrir chamado no suporte do
+GitHub pedindo liberação), ele deve passar a funcionar sem precisar reconfigurar
+nada. Pra testar se já foi liberado: **Actions → Build macOS → Run workflow**.
 
-## Como buildar no macOS
+## Como buildar no macOS (processo atual — funciona)
 
-### Opção 1: Máquina macOS local
+Precisa de alguém com um Mac (Pedro tem Apple Silicon M-series). Ver
+`Allus-Clock-Build-Mac.pdf` na raiz do repo pra instruções passo a passo
+prontas pra encaminhar.
+
+Resumo do processo:
 ```bash
+git clone https://github.com/Rumy-dev/allus-clock.git
+cd allus-clock
+npm install
 npm run make
 ```
-Isso gera um `.dmg` não assinado em `out/make/dmg/arm64/` (Apple Silicon) ou `x64/` (Intel).
+Gera o `.dmg` não assinado em:
+- `out/make/dmg/arm64/Allus Clock.dmg` — Apple Silicon (M1/M2/M3...)
+- `out/make/dmg/x64/Allus Clock.dmg` — Intel
 
-### Opção 2: CI/CD com GitHub Actions (recomendado)
-Configure GitHub Actions para buildar em macOS:
+## Publicando uma nova versão
 
-```yaml
-# .github/workflows/build-mac.yml
-name: Build macOS
+1. Bump de versão em `package.json`
+2. Gerar o `.dmg` (processo acima)
+3. Criar tag: `git tag vX.Y.Z && git push origin vX.Y.Z`
+4. Criar Release no GitHub e subir o `.dmg` como asset — via UI
+   (`github.com/Rumy-dev/allus-clock/releases/new`) ou via API com um
+   Personal Access Token (escopo `repo`)
 
-on:
-  push:
-    tags:
-      - 'v*'
+## Distribuição pros usuários finais
 
-jobs:
-  build-mac:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm ci
-      - run: npm run make
-      - uses: actions/upload-artifact@v4
-        with:
-          name: allus-clock-mac
-          path: out/make/dmg
-```
+Como não temos Developer ID Apple ($99/ano), o `.dmg` não é assinado.
+Na primeira abertura, o macOS mostra "desenvolvedor não identificado":
+- Contorno: clicar com **botão direito** no app → **Abrir** → confirmar
+  "Abrir mesmo assim" (só necessário uma vez)
 
-## Distribuição sem certificados (gratuito)
+Link de download da versão mais recente sempre fica em:
+**https://github.com/Rumy-dev/allus-clock/releases**
 
-Como não temos Developer ID Apple ($99/ano), usuários macOS receberão aviso do Gatekeeper:
-- **Aviso:** "Allus Clock é de um desenvolvedor não identificado"
-- **Contorno:** Usuários abrem Finder → `Cmd+Espaço` → digit "Allus Clock" → `Cmd+Espaço` + `Enter`
+## Quando tiver certificado Apple (futuro)
 
-Alternativa melhor: Distribuir via GitHub Releases com instruções claras.
-
-## Cuando tiver certificados Apple (futuro)
-
-Se adicionar Developer ID Certificate para code signing:
-
-1. Obter certificado em [developer.apple.com](https://developer.apple.com)
-2. Adicionar ao forge.config.ts:
+Se adicionar Developer ID Certificate para code signing, em `forge.config.ts`:
 ```typescript
 osxSign: {
   identity: 'Developer ID Application: Nome (XXXXX)',
   hardenedRuntime: true,
-  entitlements: 'assets/entitlements.plist',
-  entitlementsInherit: 'assets/entitlements.plist',
+  optionsForFile: () => ({ entitlements: 'assets/entitlements.plist' }),
 },
 osxNotarize: {
   teamId: 'XXXXX',
 }
 ```
-3. Configurar variáveis de ambiente para CI/CD
+Isso elimina o aviso do Gatekeeper e permite habilitar o GitHub Actions
+pra assinar + notarizar automaticamente também.
 
-## Arquivos criados/modificados
-- `forge.config.ts` — Adicionado MakerDMG
-- `package.json` — Adicionado @electron-forge/maker-dmg
-- `assets/entitlements.plist` — Permissões do app
-- `assets/info.plist` — Configurações macOS
-
-## Próximos passos
-1. ✅ Preparação concluída — ready to build
-2. ⏳ Testar build em Mac ou CI quando necessário
-3. 💰 (Opcional) Adicionar certificado Apple quando crescer o user base
+## Arquivos relevantes
+- `forge.config.ts` — MakerDMG, osxSign, entitlements
+- `assets/entitlements.plist` — permissões do app (tray, notificações, arquivos)
+- `assets/info.plist` — configurações macOS (Info.plist estendido)
+- `.github/workflows/build-mac.yml` — pronto, aguardando liberação da conta
+- `Allus-Clock-Build-Mac.pdf` — instruções pra quem for gerar o build

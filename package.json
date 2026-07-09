@@ -1,7 +1,7 @@
 {
   "name": "allus-clock",
   "productName": "Allus Clock",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Timer de foco/Pomodoro com rastreamento de tempo por cliente/projeto/tarefa, compartilhado pelo time.",
   "main": ".vite/build/main.js",
   "private": true,
