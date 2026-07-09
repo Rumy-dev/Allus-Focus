@@ -644,20 +644,6 @@ export function FloatingPanel() {
                 ▶ Começar
               </button>
             )}
-            <Tooltip text="Modo compacto">
-              <button
-                style={{
-                  ...iconBtn,
-                  transition: 'all 0.2s ease',
-                  background: isCompactMode ? 'rgba(167, 139, 250, 0.2)' : 'rgba(255,255,255,0.06)',
-                  borderColor: isCompactMode ? 'rgba(167, 139, 250, 0.3)' : 'rgba(255,255,255,0.12)',
-                  color: isCompactMode ? '#c4b5fd' : 'var(--allus-text-primary)',
-                }}
-                onClick={() => handleCompactModeToggle(!isCompactMode)}
-              >
-                ⇄
-              </button>
-            </Tooltip>
             <Tooltip text="Opacidade">
               <button
                 style={{
