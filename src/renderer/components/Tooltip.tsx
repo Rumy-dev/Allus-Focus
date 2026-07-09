@@ -19,7 +19,7 @@ export function Tooltip({ text, children }: TooltipProps) {
       {show && (
         <div
           style={{
-            position: 'fixed',
+            position: 'absolute',
             bottom: '110%',
             left: '50%',
             transform: 'translateX(-50%)',
