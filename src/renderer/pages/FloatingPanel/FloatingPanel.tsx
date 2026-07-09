@@ -433,13 +433,15 @@ export function FloatingPanel() {
           </div>
         </div>
 
-        {/* Linha 2: Tarefa */}
-        <div style={{ fontSize: 10, lineHeight: 1.1, color: session ? 'var(--allus-text-primary)' : 'var(--allus-text-muted)', wordBreak: 'break-word', minHeight: 12, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {session ? label : 'Nenhum bloco em andamento'}
-        </div>
+        {/* Linha 2: Tarefa — compacta em modo compacto */}
+        {!isCompactMode && (
+          <div style={{ fontSize: 10, lineHeight: 1.1, color: session ? 'var(--allus-text-primary)' : 'var(--allus-text-muted)', wordBreak: 'break-word', minHeight: 12, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {session ? label : 'Nenhum bloco em andamento'}
+          </div>
+        )}
 
-        {/* Barra de progresso */}
-        {session && (
+        {/* Barra de progresso — oculta em modo compacto */}
+        {!isCompactMode && session && (
           <div style={{ width: '100%', height: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 0, overflow: 'hidden', marginTop: '2px' }}>
             <div
               style={{
