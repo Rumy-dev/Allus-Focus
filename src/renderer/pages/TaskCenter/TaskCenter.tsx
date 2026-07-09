@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useAppState } from '../../useAppState';
 import { Titlebar } from '../../components/Titlebar';
 import { ToastHost } from '../../components/ToastHost';
@@ -38,6 +38,16 @@ export function TaskCenter() {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
   const [propsTask, setPropsTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        window.allus.invoke('window:closeSelf', undefined);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const grouped = useMemo(() => {
     if (!snapshot) return [];

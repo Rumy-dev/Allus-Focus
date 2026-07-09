@@ -53,6 +53,16 @@ export function Dashboard() {
     loadTrend();
   }, [sessionFilter, drill]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        window.allus.invoke('window:closeSelf', undefined);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const filteredPeople = useMemo(() => {
     if (!report) return [];
     if (!selectedUserId) return report.people;

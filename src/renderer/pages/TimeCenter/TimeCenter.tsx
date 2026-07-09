@@ -29,6 +29,16 @@ export function TimeCenter() {
     };
   }, [filter]);
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        window.allus.invoke('window:closeSelf', undefined);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   function toggle(id: string) {
     const next = new Set(expanded);
     if (next.has(id)) next.delete(id);
