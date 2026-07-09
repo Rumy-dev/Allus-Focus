@@ -29,8 +29,17 @@ export function FloatingPanel() {
   useKeyboardShortcuts({
     onPlayPause: () => invokeAction('timer:playPause', undefined),
     onEscape: () => {
-      setShowAdd(false);
-      setModeSelectTask(null);
+      // Fechar modal primeiro, se estiver aberto
+      if (modeSelectTask) {
+        setModeSelectTask(null);
+      } else if (showProjectPicker) {
+        setShowProjectPicker(false);
+      } else if (showAdd) {
+        setShowAdd(false);
+      } else {
+        // Se nenhum modal aberto, fechar o painel
+        window.allus.invoke('window:closeSelf', undefined);
+      }
     },
   });
 
@@ -152,6 +161,13 @@ export function FloatingPanel() {
     window.allus.invoke('window:setFloatingCompactMode', { isCompact: newValue });
     window.allus.invoke('prefs:setFloatingPanelIsCompactMode', { isCompact: newValue });
   };
+
+  // Quando abre modal em modo compacto, expandir a janela pra caber o modal
+  useEffect(() => {
+    if (modeSelectTask && isCompactMode) {
+      window.allus.invoke('window:setFloatingHeight', { width: 400, height: 500 });
+    }
+  }, [modeSelectTask, isCompactMode]);
 
   // Status badge — usa a mesma bolinha de status do resto do app (allus-status-dot)
   const statusDotStatus: 'Ativo' | 'Pausado' | 'Concluído' | 'Interrompido' = session?.status ?? 'Interrompido';

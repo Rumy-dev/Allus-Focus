@@ -83,10 +83,12 @@ app.whenReady().then(async () => {
   }
 
   // Registrar atalhos globais de teclado
+  // ESC: fechar o painel flutuante (o modal de ciclo é fechado pelo renderer)
   globalShortcut.register('Escape', () => {
     const focusedWindow = BrowserWindow.getFocusedWindow();
-    if (focusedWindow && focusedWindow.isVisible()) {
-      focusedWindow.close();
+    if (focusedWindow && focusedWindow.isVisible() && focusedWindow.webContents.getTitle().includes('floating')) {
+      // Se é o painel flutuante, enviar mensagem pra renderer tentar fechar modal primeiro
+      focusedWindow.webContents.send('key:escape', {});
     }
   });
 

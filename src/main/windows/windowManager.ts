@@ -241,6 +241,15 @@ export function togglePulse(): void {
   }
 }
 
+export function resetFloatingPanelToNormal(): void {
+  // Quando abre via botão na página principal, resetar para modo normal
+  floatingPanelCompactMode = false;
+  appStore.patch({ floatingPanelIsCompactMode: false });
+  if (windows.floating && !windows.floating.isDestroyed()) {
+    setFloatingPanelCompactMode(false);
+  }
+}
+
 export function setFloatingPanelCompactMode(isCompact: boolean): void {
   floatingPanelCompactMode = isCompact;
   if (!windows.floating || windows.floating.isDestroyed()) return;

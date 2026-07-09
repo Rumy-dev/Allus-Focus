@@ -131,7 +131,10 @@ export function registerIpcHandlers(): void {
   handle('window:openDashboard', async () => windowManager.showDashboard());
   handle('window:openPulse', async () => windowManager.showPulse());
   handle('window:openMain', async () => windowManager.showMainWindow());
-  handle('window:openFloating', async () => windowManager.showFloatingPanel());
+  handle('window:openFloating', async () => {
+    windowManager.resetFloatingPanelToNormal();
+    windowManager.showFloatingPanel();
+  });
 
   handle('window:toggleTaskCenter', async () => windowManager.toggleTaskCenter());
   handle('window:toggleTimeCenter', async () => windowManager.toggleTimeCenter());
