@@ -13,7 +13,7 @@
   <key>NSUserNotificationAlertStyle</key>
   <string>alert</string>
   <key>NSLocalNetworkUsageDescription</key>
-  <string>Allus Clock precisa de acesso à rede local para sincronização de dados.</string>
+  <string>Allus Focus precisa de acesso à rede local para sincronização de dados.</string>
   <key>NSBonjourServiceTypes</key>
   <array>
     <string>_allus._tcp</string>

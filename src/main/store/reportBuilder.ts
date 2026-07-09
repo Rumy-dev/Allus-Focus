@@ -199,7 +199,7 @@ export async function exportCsv(range: DateRangeFilter): Promise<{ path: string 
   }
 
   const { filePath, canceled } = await dialog.showSaveDialog({
-    defaultPath: 'allus-clock-relatorio.csv',
+    defaultPath: 'allus-focus-relatorio.csv',
     filters: [{ name: 'CSV', extensions: ['csv'] }],
   });
   if (canceled || !filePath) return { error: 'Exportação cancelada.' };

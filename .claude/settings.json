@@ -26,7 +26,11 @@
       "Bash(git commit *)",
       "Bash(git commit -m 'fix: Tooltip positioning - usar absolute em vez de fixed *)",
       "Bash(git commit -m 'feat: F12 abre DevTools em qualquer janela *)",
-      "Bash(git commit -m 'feat: Botão sutil de DevTools em Preferências *)"
+      "Bash(git commit -m 'feat: Botão sutil de DevTools em Preferências *)",
+      "PowerShell(Get-Command pandoc -ErrorAction SilentlyContinue; Get-Command wkhtmltopdf -ErrorAction SilentlyContinue; @\\(\"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\",\"C:\\\\Program Files \\(x86\\)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe\",\"C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe\"\\) | ForEach-Object { Test-Path $_ })",
+      "Bash(node -e ' *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(git push *)"
     ]
   }
 }

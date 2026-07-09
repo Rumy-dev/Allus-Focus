@@ -1,6 +1,6 @@
 {
-  "name": "allus-clock",
-  "productName": "Allus Clock",
+  "name": "allus-focus",
+  "productName": "Allus Focus",
   "version": "0.1.1",
   "description": "Timer de foco/Pomodoro com rastreamento de tempo por cliente/projeto/tarefa, compartilhado pelo time.",
   "main": ".vite/build/main.js",
@@ -38,8 +38,10 @@
     "electron": "43.1.0",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
+    "ico": "^0.3.3",
     "jimp": "^1.6.1",
     "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.3",
     "typescript": "^5.9.3",
     "vite": "^5.4.21"
   },

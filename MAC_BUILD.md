@@ -1,4 +1,4 @@
-# Build Allus Clock para macOS
+# Build Allus Focus para macOS
 
 ## Status atual
 ✅ Configuração de build pronta (MakerDMG, entitlements, Info.plist)
@@ -35,8 +35,8 @@ npm install
 npm run make
 ```
 Gera o `.dmg` não assinado em:
-- `out/make/dmg/arm64/Allus Clock.dmg` — Apple Silicon (M1/M2/M3...)
-- `out/make/dmg/x64/Allus Clock.dmg` — Intel
+- `out/make/dmg/arm64/Allus Focus.dmg` — Apple Silicon (M1/M2/M3...)
+- `out/make/dmg/x64/Allus Focus.dmg` — Intel
 
 ## Publicando uma nova versão
 

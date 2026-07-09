@@ -14,14 +14,12 @@ export function FloatingPanel() {
   const [showAdd, setShowAdd] = useState(false);
   const [text, setText] = useState('');
   const [modeSelectTask, setModeSelectTask] = useState<{ taskId: string | null; title: string } | null>(null);
-  const [showOpacityControl, setShowOpacityControl] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [myHoursSeconds, setMyHoursSeconds] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const didSyncExpandedRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const modalCardRef = useRef<HTMLDivElement>(null);
-  const opacityPanelRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
   const wasSessionActiveRef = useRef<boolean>(false);
@@ -91,8 +89,10 @@ export function FloatingPanel() {
         return;
       }
 
-      // Drawer expandido (sem modal): tamanho segue o conteúdo do painel
+      // Drawer expandido (sem modal): tamanho segue o conteúdo do painel.
+      // Mas se o usuário já redimensionou manualmente, respeita o tamanho customizado.
       if (isExpanded) {
+        if (snapshot?.floatingPanelSize !== null) return;
         const el = contentRef.current;
         if (!el) return;
         const width = 300;
@@ -140,7 +140,12 @@ export function FloatingPanel() {
     observed.forEach((el) => observer.observe(el));
     measure();
     return () => observer.disconnect();
-  }, [modeSelectTask, showProjectPicker, isExpanded, snapshot?.floatingPanelSize]);
+    // floatingPanelSize é lido só pra decisão de "primeira medição" no ramo
+    // colapsado/sem-modal — não deve disparar o efeito de novo sozinho, senão
+    // qualquer resize (inclusive o auto-fit programático abaixo) re-executa
+    // esse efeito e cria um vaivém de resizes que aparenta tremor.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeSelectTask, showProjectPicker, isExpanded]);
 
   useEffect(() => {
     if (!snapshot?.auth.profile) return;
@@ -268,9 +273,9 @@ export function FloatingPanel() {
       } as any}
     >
       <div ref={contentRef} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-4)', flex: 1, overflowY: 'auto' }}>
-      {/* Seção superior: Status, Ciclo, Timer, Progresso */}
+      {/* Seção superior: Status, Ciclo, Timer, Progresso — sem no-drag, não tem
+          nada clicável aqui, então o espaço vazio arrasta o painel como o resto */}
       <div
-        className="allus-no-drag"
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -706,14 +711,6 @@ export function FloatingPanel() {
                   {isSizeLocked ? '🔒' : '🔓'}
                 </button>
               </Tooltip>
-              <Tooltip text="Opacidade">
-                <button
-                  style={{ ...iconBtn, transition: 'all 0.2s ease' }}
-                  onClick={() => setShowOpacityControl((v) => !v)}
-                >
-                  ◐
-                </button>
-              </Tooltip>
               <Tooltip text="Abrir janela principal">
                 <button
                   style={{ ...iconBtn, transition: 'all 0.2s ease' }}
@@ -727,56 +724,6 @@ export function FloatingPanel() {
         </div>
       )}
       </div>
-
-      {/* Painel de controle de opacidade - overlay com slider */}
-      {showOpacityControl && (
-        <div
-          className="allus-no-drag"
-          ref={opacityPanelRef}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-          onClick={() => setShowOpacityControl(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'rgba(0, 0, 1, 0.95)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 12,
-              padding: '16px',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              minWidth: '200px',
-            }}
-          >
-            <div style={{ fontSize: 12, color: 'var(--allus-text-muted)', marginBottom: '12px', fontWeight: 500 }}>
-              Opacidade do painel
-            </div>
-            <input
-              type="range"
-              min={20}
-              max={100}
-              value={snapshot?.floatingPanelOpacity ?? 90}
-              onChange={(e) => invokeAction('prefs:setFloatingPanelOpacity', { opacity: Number(e.target.value) })}
-              style={{
-                width: '100%',
-                cursor: 'pointer',
-              }}
-              title={`${snapshot?.floatingPanelOpacity ?? 90}%`}
-            />
-            <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginTop: '8px', textAlign: 'center' }}>
-              {snapshot?.floatingPanelOpacity ?? 90}%
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal de seleção de tarefa e modo */}
       {modeSelectTask && (

@@ -165,6 +165,7 @@ export function registerIpcHandlers(): void {
     if (appStore.getSnapshot().floatingPanelSizeLocked) return;
     const win = BrowserWindow.fromWebContents(_event.sender);
     if (win) {
+      windowManager.markProgrammaticFloatingResize();
       const bounds = win.getBounds();
       win.setBounds({
         ...bounds,

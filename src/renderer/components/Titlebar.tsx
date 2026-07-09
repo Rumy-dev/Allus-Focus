@@ -34,7 +34,7 @@ export function Titlebar({ title, subtitle, onClose, closeLabel = '✕' }: Title
         <button
           onClick={onClose ?? (() => window.allus.invoke('window:closeSelf', undefined))}
           style={closeButtonStyle}
-          title="Fechar (o Allus Clock continua rodando no painel flutuante e na bandeja)"
+          title="Fechar (o Allus Focus continua rodando no painel flutuante e na bandeja)"
         >
           {closeLabel}
         </button>

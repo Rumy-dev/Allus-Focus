@@ -29,7 +29,7 @@ function trayIcon() {
 export function initTray(): void {
   if (tray) return;
   tray = new Tray(trayIcon());
-  tray.setToolTip('Allus Clock');
+  tray.setToolTip('Allus Focus');
   tray.on('double-click', () => windowManager.showMainWindow());
   render();
 }
@@ -50,7 +50,7 @@ export function render(): void {
   // No Windows não existe texto ao lado do ícone da bandeja como no
   // macOS (NSStatusItem.title) — usamos o tooltip. No macOS, setTitle()
   // funciona e mostra o texto ao lado do ícone.
-  tray.setToolTip(`Allus Clock — ${timeLabel}`);
+  tray.setToolTip(`Allus Focus — ${timeLabel}`);
   if (process.platform === 'darwin') {
     tray.setTitle(timeLabel);
   }
@@ -72,7 +72,7 @@ export function render(): void {
     modeItem('deskTime'),
     modeItem('deepWork'),
     { type: 'separator' },
-    { label: 'Abrir Allus Clock', click: () => windowManager.showMainWindow() },
+    { label: 'Abrir Allus Focus', click: () => windowManager.showMainWindow() },
     { label: 'Central de Tarefas', click: () => windowManager.showTaskCenter() },
     { label: 'Central de Tempos', click: () => windowManager.showTimeCenter() },
     ...(isAdmin ? [{ label: 'Allus Pulse', click: () => windowManager.showPulse() }] : []),
@@ -87,7 +87,7 @@ export function render(): void {
       },
     },
     {
-      label: 'Sair do Allus Clock',
+      label: 'Sair do Allus Focus',
       accelerator: 'CmdOrCtrl+Q',
       click: () => {
         windowManager.setQuitting(true);

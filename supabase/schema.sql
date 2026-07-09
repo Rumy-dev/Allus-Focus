@@ -1,4 +1,4 @@
--- Allus Clock — schema Postgres/Supabase
+-- Allus Focus — schema Postgres/Supabase
 -- Rode este arquivo inteiro uma vez no SQL Editor do painel do Supabase
 -- (Project → SQL Editor → New query → colar → Run).
 

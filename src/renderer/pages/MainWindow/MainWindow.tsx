@@ -391,7 +391,7 @@ export function MainWindow() {
                 {/* Bloco: Sobre */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
                   <span style={{ fontSize: 10, color: 'var(--allus-text-muted)' }}>
-                    Allus Clock {appInfo ? `v${appInfo.version}` : ''}
+                    Allus Focus {appInfo ? `v${appInfo.version}` : ''}
                   </span>
                   {appInfo?.isDev && (
                     <button
@@ -500,7 +500,7 @@ export function MainWindow() {
 
         {snapshot.clients.length === 0 && (
           <section className="allus-glass" style={{ padding: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>Bem-vindo(a) ao Allus Clock 👋</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>Bem-vindo(a) ao Allus Focus 👋</div>
             <div style={{ fontSize: 13, color: 'var(--allus-text-secondary)', maxWidth: 420 }}>
               Ainda não existe nenhum cliente/projeto no time. Crie o primeiro abaixo — ele fica disponível
               pra todo mundo. (Se quiser só cronometrar algo rápido sem organizar por cliente, marque

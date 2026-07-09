@@ -15,6 +15,25 @@ export function setQuitting(value: boolean): void {
 
 let floatingResizeTimeout: NodeJS.Timeout | null = null;
 
+// Diferencia um resize disparado pelo usuário (arrastando a borda) de um
+// resize programático (auto-fit do painel flutuante via setFloatingHeight).
+// Sem isso, o listener 'resized' abaixo persistia QUALQUER mudança de bounds
+// como se fosse uma preferência manual do usuário, "contaminando"
+// floatingPanelSize com tamanhos de auto-fit e quebrando o reset ao recolher
+// o drawer (além de causar um vaivém de resizes que aparentava tremor).
+let isProgrammaticFloatingResize = false;
+let programmaticResizeResetTimeout: NodeJS.Timeout | null = null;
+export function markProgrammaticFloatingResize(): void {
+  isProgrammaticFloatingResize = true;
+  if (programmaticResizeResetTimeout) clearTimeout(programmaticResizeResetTimeout);
+  // O evento nativo 'resized' chega de forma assíncrona depois de setBounds;
+  // 150ms é folga suficiente pra cobrir isso sem atrapalhar resizes manuais
+  // subsequentes do usuário.
+  programmaticResizeResetTimeout = setTimeout(() => {
+    isProgrammaticFloatingResize = false;
+  }, 150);
+}
+
 const windows: {
   login: BrowserWindow | null;
   main: BrowserWindow | null;
@@ -47,9 +66,9 @@ function loadPage(win: BrowserWindow, page: string): void {
 // globalShortcut sequestra a combinação em nível de SISTEMA OPERACIONAL
 // inteiro, mesmo com outro app em foco — no macOS isso quebrava atalhos
 // nativos usadíssimos (Cmd+H esconder app, Cmd+F buscar, Cmd+B negrito,
-// Cmd+T nova aba) sempre que o Allus Clock estava rodando em segundo
+// Cmd+T nova aba) sempre que o Allus Focus estava rodando em segundo
 // plano, o que é o tempo todo (ele vive na bandeja). before-input-event só
-// dispara quando a própria janela do Allus Clock está em foco.
+// dispara quando a própria janela do Allus Focus está em foco.
 function attachWindowShortcuts(win: BrowserWindow): void {
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
@@ -225,8 +244,11 @@ export function showFloatingPanel(): void {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   loadPage(win, 'floating');
 
-  // Salvar tamanho quando usuário redimensiona manualmente (com debounce)
+  // Salvar tamanho quando usuário redimensiona manualmente (com debounce).
+  // Resizes programáticos (auto-fit) são ignorados aqui — ver
+  // markProgrammaticFloatingResize acima.
   win.on('resized', () => {
+    if (isProgrammaticFloatingResize) return;
     if (appStore.getSnapshot().floatingPanelSizeLocked) return;
     if (floatingResizeTimeout) clearTimeout(floatingResizeTimeout);
 
