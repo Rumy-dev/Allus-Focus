@@ -18,16 +18,6 @@ export function Tooltip({ text, children }: TooltipProps) {
       </div>
       {show && (
         <div
-          ref={(el) => {
-            if (el) {
-              const rect = el.getBoundingClientRect?.();
-              if (rect && rect.top < 0) {
-                // Se sair da borda superior, mostrar embaixo
-                el.style.bottom = 'auto';
-                el.style.top = 'calc(100% + 4px)';
-              }
-            }
-          }}
           style={{
             position: 'fixed',
             bottom: '110%',
@@ -35,9 +25,9 @@ export function Tooltip({ text, children }: TooltipProps) {
             transform: 'translateX(-50%)',
             background: 'rgba(0, 0, 0, 0.9)',
             color: '#f5f3ff',
-            padding: '6px 10px',
+            padding: '4px 8px',
             borderRadius: 6,
-            fontSize: 11,
+            fontSize: 9,
             whiteSpace: 'nowrap',
             zIndex: 1000,
             pointerEvents: 'none',

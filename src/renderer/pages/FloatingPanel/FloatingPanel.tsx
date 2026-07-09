@@ -199,9 +199,9 @@ export function FloatingPanel() {
               <button
                 style={{
                   ...iconBtn,
-                  width: 24,
-                  height: 24,
-                  fontSize: 12,
+                  width: 28,
+                  height: 28,
+                  fontSize: 13,
                   padding: 0,
                   background: isCompactMode ? 'rgba(167, 139, 250, 0.2)' : 'rgba(255,255,255,0.06)',
                   borderColor: isCompactMode ? 'rgba(167, 139, 250, 0.3)' : 'rgba(255,255,255,0.12)',
@@ -217,9 +217,9 @@ export function FloatingPanel() {
               <button
                 style={{
                   ...iconBtn,
-                  width: 24,
-                  height: 24,
-                  fontSize: 12,
+                  width: 28,
+                  height: 28,
+                  fontSize: 13,
                   padding: 0,
                   transition: 'all 0.2s ease',
                 }}
@@ -232,9 +232,9 @@ export function FloatingPanel() {
               <button
                 style={{
                   ...iconBtn,
-                  width: 24,
-                  height: 24,
-                  fontSize: 12,
+                  width: 28,
+                  height: 28,
+                  fontSize: 13,
                   padding: 0,
                   transition: 'all 0.2s ease',
                 }}
@@ -250,14 +250,14 @@ export function FloatingPanel() {
                 <button
                   onClick={() => invokeAction('timer:playPause', undefined)}
                   style={{
-                    width: 24,
-                    height: 24,
+                    width: 28,
+                    height: 28,
                     padding: 0,
                     borderRadius: 4,
                     border: '1px solid rgba(255,255,255,0.12)',
                     background: session.status === 'Ativo' ? 'rgba(255, 184, 77, 0.2)' : 'rgba(79, 245, 227, 0.2)',
                     color: session.status === 'Ativo' ? '#ffb84d' : '#4bf5e3',
-                    fontSize: 11,
+                    fontSize: 13,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -271,14 +271,14 @@ export function FloatingPanel() {
                 <button
                   onClick={() => (isFocus ? invokeAction('timer:skipToBreak', undefined) : invokeAction('timer:skipToFocus', undefined))}
                   style={{
-                    width: 24,
-                    height: 24,
+                    width: 28,
+                    height: 28,
                     padding: 0,
                     borderRadius: 4,
                     border: 'none',
                     background: cycleColor,
                     color: '#0d0b16',
-                    fontSize: 11,
+                    fontSize: 13,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -295,14 +295,14 @@ export function FloatingPanel() {
                 <button
                   onClick={() => setModeSelectTask(lastTask)}
                   style={{
-                    width: 24,
-                    height: 24,
+                    width: 28,
+                    height: 28,
                     padding: 0,
                     borderRadius: 4,
                     border: '1.5px solid rgba(79, 245, 227, 0.5)',
                     background: 'rgba(79, 245, 227, 0.12)',
                     color: '#4bf5e3',
-                    fontSize: 11,
+                    fontSize: 13,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -316,14 +316,14 @@ export function FloatingPanel() {
                 <button
                   onClick={() => setModeSelectTask({ taskId: null, title: '' })}
                   style={{
-                    width: 24,
-                    height: 24,
+                    width: 28,
+                    height: 28,
                     padding: 0,
                     borderRadius: 4,
                     border: '1px solid rgba(255,255,255,0.15)',
                     background: 'rgba(255,255,255,0.05)',
                     color: 'var(--allus-text-secondary)',
-                    fontSize: 11,
+                    fontSize: 13,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -339,14 +339,14 @@ export function FloatingPanel() {
               <button
                 onClick={() => setShowAdd(true)}
                 style={{
-                  width: 24,
-                  height: 24,
+                  width: 28,
+                  height: 28,
                   padding: 0,
                   borderRadius: 4,
                   border: '1.5px solid rgba(79, 245, 227, 0.4)',
                   background: 'rgba(79, 245, 227, 0.1)',
                   color: '#4bf5e3',
-                  fontSize: 11,
+                  fontSize: 13,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
