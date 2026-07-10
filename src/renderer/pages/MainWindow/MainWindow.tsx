@@ -167,8 +167,6 @@ export function MainWindow() {
     setSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }
 
-  const glassAlpha = (snapshot.windowGlassOpacity ?? 70) / 100;
-
   return (
     <div
       className="allus-app-bg allus-watermark"
@@ -178,9 +176,6 @@ export function MainWindow() {
           display: 'flex',
           flexDirection: 'column',
           '--allus-watermark-image': `url(${allusWatermark})`,
-          '--allus-app-bg-color': `rgba(0, 0, 1, ${glassAlpha})`,
-          '--allus-glass-bg-dynamic': `rgba(0, 0, 1, ${0.85 * glassAlpha})`,
-          '--allus-glass-border-dynamic': `rgba(255, 255, 255, ${0.5 * glassAlpha})`,
         } as CSSProperties
       }
     >
@@ -334,24 +329,6 @@ export function MainWindow() {
                     }}
                     label="Travar tamanho do painel"
                   />
-                </div>
-
-                {/* Bloco: Aparência */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
-                  <div style={sectionHeadingStyle}>Aparência</div>
-                  <div>
-                    <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>
-                      Transparência da janela — {snapshot.windowGlassOpacity}%
-                    </div>
-                    <input
-                      type="range"
-                      className="allus-slider"
-                      min={0}
-                      max={100}
-                      value={snapshot.windowGlassOpacity}
-                      onChange={(e) => invokeAction('prefs:setWindowGlassOpacity', { opacity: Number(e.target.value) })}
-                    />
-                  </div>
                 </div>
 
                 {/* Bloco: Preferências */}

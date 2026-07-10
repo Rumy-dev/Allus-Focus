@@ -103,11 +103,6 @@ export function registerIpcHandlers(): void {
   handle('app:restartForUpdate', async () => {
     restartForUpdate();
   });
-  handle('prefs:setWindowGlassOpacity', async ({ opacity }) => {
-    const clamped = Math.max(0, Math.min(100, opacity));
-    await authManager.updatePreferences({ windowGlassOpacity: clamped });
-    appStore.patch({ windowGlassOpacity: clamped });
-  });
   handle('prefs:setFloatingPanelSize', async ({ size }) => {
     await authManager.updatePreferences({ floatingPanelSize: size });
     appStore.patch({ floatingPanelSize: size });

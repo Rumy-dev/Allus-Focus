@@ -23,7 +23,6 @@ let state: AppSnapshot = {
   soundEnabled: DEFAULT_PREFERENCES.soundEnabled,
   floatingMinimizable: DEFAULT_PREFERENCES.floatingMinimizable,
   floatingPanelOpacity: DEFAULT_PREFERENCES.floatingPanelOpacity,
-  windowGlassOpacity: DEFAULT_PREFERENCES.windowGlassOpacity,
   floatingPanelSize: DEFAULT_PREFERENCES.floatingPanelSize,
   floatingPanelCompactSize: DEFAULT_PREFERENCES.floatingPanelCompactSize,
   floatingPanelIsCompactMode: DEFAULT_PREFERENCES.floatingPanelIsCompactMode,

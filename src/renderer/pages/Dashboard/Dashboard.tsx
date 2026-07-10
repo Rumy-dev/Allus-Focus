@@ -191,8 +191,6 @@ export function Dashboard() {
 
   if (!snapshot) return <div className="allus-app-bg" style={{ height: '100%' }} />;
 
-  const glassAlpha = (snapshot.windowGlassOpacity ?? 70) / 100;
-
   return (
     <div
       className="allus-app-bg allus-watermark"
@@ -202,9 +200,6 @@ export function Dashboard() {
           display: 'flex',
           flexDirection: 'column',
           '--allus-watermark-image': `url(${allusWatermark})`,
-          '--allus-app-bg-color': `rgba(0, 0, 1, ${glassAlpha})`,
-          '--allus-glass-bg-dynamic': `rgba(0, 0, 1, ${0.85 * glassAlpha})`,
-          '--allus-glass-border-dynamic': `rgba(255, 255, 255, ${0.5 * glassAlpha})`,
         } as CSSProperties
       }
     >

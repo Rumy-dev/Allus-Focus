@@ -33,17 +33,8 @@
 }
 
 .allus-glass {
-  /* --allus-glass-bg-dynamic/-border-dynamic são setadas inline nas telas
-     com windowGlassOpacity ajustável (MainWindow/Dashboard/Pulse/
-     TaskCenter/TimeCenter), escalando estes cards com a MESMA fórmula e
-     cor do painel flutuante (rgba(0,0,1,alpha*0.85) — preto, não branco)
-     — sem isso, os cards clareavam em vez de escurecer, o oposto do
-     painel flutuante, e cobriam quase toda a área visível, deixando o
-     slider praticamente sem efeito perceptível. Em qualquer outro lugar
-     que usa .allus-glass sem setar essas variáveis, cai no visual fixo de
-     sempre. */
-  background: var(--allus-glass-bg-dynamic, var(--allus-glass-bg));
-  border: 1px solid var(--allus-glass-border-dynamic, var(--allus-glass-border));
+  background: var(--allus-glass-bg);
+  border: 1px solid var(--allus-glass-border);
   border-radius: var(--allus-radius-lg);
   backdrop-filter: var(--allus-glass-blur);
   -webkit-backdrop-filter: var(--allus-glass-blur);
@@ -57,19 +48,11 @@
 }
 
 .allus-app-bg {
-  /* --allus-app-bg-color é setada inline por cada tela, calculada a
-     partir da preferência windowGlassOpacity (rgba(0,0,1,alpha)) — sem
-     valor inline, cai no --allus-bg-1 sólido de sempre. A camada de cor
-     fica NA FRENTE dos brilhos decorativos (truque do linear-gradient
-     degenerado, já que "background-color" só pode ir na última camada do
-     shorthand) — assim ela domina visualmente o efeito vidro/sólido, em
-     vez de ficar escondida atrás dos gradientes com opacidade fixa (que
-     antes deixava o slider quase imperceptível). */
   background:
-    linear-gradient(var(--allus-app-bg-color, var(--allus-bg-1)), var(--allus-app-bg-color, var(--allus-bg-1))),
     radial-gradient(circle at 15% 10%, rgba(236, 220, 1, 0.16), transparent 45%),
     radial-gradient(circle at 85% 20%, rgba(184, 172, 0, 0.14), transparent 40%),
-    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%);
+    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%),
+    var(--allus-bg-1);
   border-radius: var(--allus-radius-lg);
   overflow: hidden;
 }
@@ -81,15 +64,12 @@
    SVG (allus-focus-watermark.svg); a imagem entra via
    --allus-watermark-image, setada inline pelo componente. */
 .allus-app-bg.allus-watermark {
-  /* Marca d'água fica acima de tudo (sempre visível); logo abaixo dela, a
-     camada de cor ajustável domina sobre os brilhos decorativos — mesma
-     lógica de ordering do .allus-app-bg acima. */
   background:
     var(--allus-watermark-image) no-repeat 100% 100% / 300px 300px,
-    linear-gradient(var(--allus-app-bg-color, var(--allus-bg-1)), var(--allus-app-bg-color, var(--allus-bg-1))),
     radial-gradient(circle at 15% 10%, rgba(236, 220, 1, 0.16), transparent 45%),
     radial-gradient(circle at 85% 20%, rgba(184, 172, 0, 0.14), transparent 40%),
-    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%);
+    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%),
+    var(--allus-bg-1);
 }
 
 .allus-titlebar {

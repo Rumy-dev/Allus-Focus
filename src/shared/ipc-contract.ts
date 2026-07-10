@@ -30,7 +30,6 @@ export interface AppSnapshot {
   soundEnabled: boolean;
   floatingMinimizable: boolean;
   floatingPanelOpacity: number;
-  windowGlassOpacity: number;
   floatingPanelSize: { width: number; height: number } | null;
   floatingPanelCompactSize: { width: number; height: number } | null;
   floatingPanelIsCompactMode: boolean;
