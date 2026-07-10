@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Titlebar } from '../../components/Titlebar';
 import { DateFilterBar } from '../../components/DateFilterBar';
 import { ToastHost } from '../../components/ToastHost';
 import { invokeAction } from '../../invoke';
+import { useAppState } from '../../useAppState';
 import { formatDuration } from '../../../shared/types';
 import type { DateRangeFilter, SessionDateFilter, TimeReportPerson } from '../../../shared/types';
 
 export function TimeCenter() {
+  const snapshot = useAppState();
   const [filter, setFilter] = useState<SessionDateFilter>('Hoje');
   const [people, setPeople] = useState<TimeReportPerson[]>([]);
   const [total, setTotal] = useState(0);
@@ -65,8 +68,20 @@ export function TimeCenter() {
     await invokeAction('report:exportCsv', { range });
   }
 
+  const glassAlpha = (snapshot?.windowGlassOpacity ?? 70) / 100;
+
   return (
-    <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div
+      className="allus-app-bg"
+      style={
+        {
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          '--allus-app-bg-color': `rgba(0, 0, 1, ${glassAlpha})`,
+        } as CSSProperties
+      }
+    >
       <Titlebar title="CENTRAL DE TEMPOS · Tempo acumulado por pessoa/tarefa" />
       <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

@@ -7,6 +7,7 @@ import * as timerEngine from './store/timerEngine';
 import * as windowManager from './windows/windowManager';
 import * as tray from './tray';
 import { registerIpcHandlers } from './ipcHandlers';
+import { initAutoUpdater } from './updater';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -75,6 +76,7 @@ function closeSplashAndReveal(showTarget: () => void): void {
 app.whenReady().then(async () => {
   registerIpcHandlers();
   appStore.patch({ autoLaunchEnabled: app.getLoginItemSettings().openAtLogin });
+  initAutoUpdater();
 
   // splashStartedAt só é marcado quando a janela fica de fato visível
   // (ready-to-show) — ver comentário em windowManager.showSplash. Contar a
@@ -123,6 +125,7 @@ app.whenReady().then(async () => {
         soundEnabled: state.profile.preferences.soundEnabled,
         floatingMinimizable: state.profile.preferences.floatingMinimizable,
         floatingPanelOpacity: state.profile.preferences.floatingPanelOpacity,
+        windowGlassOpacity: state.profile.preferences.windowGlassOpacity,
         floatingPanelSize: state.profile.preferences.floatingPanelSize,
         floatingPanelCompactSize: state.profile.preferences.floatingPanelCompactSize,
         floatingPanelIsCompactMode: state.profile.preferences.floatingPanelIsCompactMode,

@@ -7,6 +7,7 @@ import * as reportBuilder from './store/reportBuilder';
 import * as pulseBuilder from './store/pulseBuilder';
 import { savePrefs } from './store/prefsStore';
 import * as windowManager from './windows/windowManager';
+import { restartForUpdate } from './updater';
 import type { IpcInvokeMap } from '../shared/ipc-contract';
 
 function handle<K extends keyof IpcInvokeMap>(
@@ -98,6 +99,14 @@ export function registerIpcHandlers(): void {
     const clamped = Math.max(0, Math.min(100, opacity));
     await authManager.updatePreferences({ floatingPanelOpacity: clamped });
     appStore.patch({ floatingPanelOpacity: clamped });
+  });
+  handle('app:restartForUpdate', async () => {
+    restartForUpdate();
+  });
+  handle('prefs:setWindowGlassOpacity', async ({ opacity }) => {
+    const clamped = Math.max(0, Math.min(100, opacity));
+    await authManager.updatePreferences({ windowGlassOpacity: clamped });
+    appStore.patch({ windowGlassOpacity: clamped });
   });
   handle('prefs:setFloatingPanelSize', async ({ size }) => {
     await authManager.updatePreferences({ floatingPanelSize: size });

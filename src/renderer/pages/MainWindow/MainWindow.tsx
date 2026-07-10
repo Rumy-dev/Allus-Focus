@@ -167,6 +167,8 @@ export function MainWindow() {
     setSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }
 
+  const glassAlpha = (snapshot.windowGlassOpacity ?? 70) / 100;
+
   return (
     <div
       className="allus-app-bg allus-watermark"
@@ -176,6 +178,7 @@ export function MainWindow() {
           display: 'flex',
           flexDirection: 'column',
           '--allus-watermark-image': `url(${allusWatermark})`,
+          '--allus-app-bg-color': `rgba(0, 0, 1, ${glassAlpha})`,
         } as CSSProperties
       }
     >
@@ -189,6 +192,20 @@ export function MainWindow() {
         <div style={{ flex: 1 }} />
         {!snapshot.online && (
           <span style={{ fontSize: 11, color: 'var(--allus-status-interrompido)' }}>● Sem conexão</span>
+        )}
+        {snapshot.updateStatus === 'checking' && (
+          <span style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>Verificando atualizações...</span>
+        )}
+        {snapshot.updateStatus === 'downloading' && (
+          <span style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>Baixando atualização...</span>
+        )}
+        {snapshot.updateStatus === 'ready' && (
+          <button
+            style={{ ...pillButtonStyle, fontSize: 11 }}
+            onClick={() => invokeAction('app:restartForUpdate', undefined)}
+          >
+            Reiniciar para atualizar
+          </button>
         )}
         <div className="allus-no-drag" style={{ position: 'relative' }}>
           <button style={pillButtonStyle} onClick={() => setShowAccount((v) => !v)}>
@@ -315,6 +332,24 @@ export function MainWindow() {
                     }}
                     label="Travar tamanho do painel"
                   />
+                </div>
+
+                {/* Bloco: Aparência */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
+                  <div style={sectionHeadingStyle}>Aparência</div>
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>
+                      Transparência da janela — {snapshot.windowGlassOpacity}%
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={snapshot.windowGlassOpacity}
+                      onChange={(e) => invokeAction('prefs:setWindowGlassOpacity', { opacity: Number(e.target.value) })}
+                      style={{ width: '100%', cursor: 'pointer' }}
+                    />
+                  </div>
                 </div>
 
                 {/* Bloco: Preferências */}

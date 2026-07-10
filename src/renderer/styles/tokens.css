@@ -41,11 +41,14 @@
 }
 
 .allus-app-bg {
+  /* --allus-app-bg-color é setada inline por cada tela, calculada a
+     partir da preferência windowGlassOpacity (rgba(0,0,1,alpha)) — sem
+     valor inline, cai no --allus-bg-1 sólido de sempre. */
   background:
     radial-gradient(circle at 15% 10%, rgba(236, 220, 1, 0.16), transparent 45%),
     radial-gradient(circle at 85% 20%, rgba(184, 172, 0, 0.14), transparent 40%),
     radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%),
-    var(--allus-bg-1);
+    var(--allus-app-bg-color, var(--allus-bg-1));
   border-radius: var(--allus-radius-lg);
   overflow: hidden;
 }
@@ -62,7 +65,7 @@
     radial-gradient(circle at 15% 10%, rgba(236, 220, 1, 0.16), transparent 45%),
     radial-gradient(circle at 85% 20%, rgba(184, 172, 0, 0.14), transparent 40%),
     radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%),
-    var(--allus-bg-1);
+    var(--allus-app-bg-color, var(--allus-bg-1));
 }
 
 .allus-titlebar {

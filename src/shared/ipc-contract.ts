@@ -30,12 +30,14 @@ export interface AppSnapshot {
   soundEnabled: boolean;
   floatingMinimizable: boolean;
   floatingPanelOpacity: number;
+  windowGlassOpacity: number;
   floatingPanelSize: { width: number; height: number } | null;
   floatingPanelCompactSize: { width: number; height: number } | null;
   floatingPanelIsCompactMode: boolean;
   floatingPanelSizeLocked: boolean;
   floatingPanelExpanded: boolean;
   autoLaunchEnabled: boolean;
+  updateStatus: 'idle' | 'checking' | 'downloading' | 'ready' | 'error';
   recentTasks: PomoTaskLog[]; // últimas 3 tarefas distintas, p/ troca rápida
   profiles: TeamMember[]; // roster do time, p/ "criado por" etc
 }
@@ -93,6 +95,8 @@ export interface IpcInvokeMap {
   'prefs:setSound': (args: { enabled: boolean }) => void;
   'prefs:setFloatingMinimizable': (args: { enabled: boolean }) => void;
   'prefs:setFloatingPanelOpacity': (args: { opacity: number }) => void;
+  'prefs:setWindowGlassOpacity': (args: { opacity: number }) => void;
+  'app:restartForUpdate': () => void;
   'prefs:setFloatingPanelSize': (args: { size: { width: number; height: number } | null }) => void;
   'prefs:setFloatingPanelSizeLocked': (args: { locked: boolean }) => void;
   'prefs:setFloatingPanelExpanded': (args: { expanded: boolean }) => void;

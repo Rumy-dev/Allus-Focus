@@ -68,6 +68,7 @@ export interface UserPreferences {
   soundEnabled: boolean;
   floatingMinimizable: boolean;
   floatingPanelOpacity: number; // 0-100, quanto mais alto mais opaco
+  windowGlassOpacity: number; // 0-100, quanto mais alto mais opaco — MainWindow/Dashboard/Pulse/TaskCenter/TimeCenter
   floatingPanelSize: { width: number; height: number } | null; // null = auto-fit (modo normal)
   floatingPanelCompactSize: { width: number; height: number } | null; // null = default (modo compacto)
   floatingPanelIsCompactMode: boolean; // true = modo compacto, false = modo normal
@@ -83,6 +84,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   soundEnabled: true,
   floatingMinimizable: false,
   floatingPanelOpacity: 90,
+  windowGlassOpacity: 70,
   floatingPanelSize: null,
   floatingPanelCompactSize: null,
   floatingPanelIsCompactMode: false,

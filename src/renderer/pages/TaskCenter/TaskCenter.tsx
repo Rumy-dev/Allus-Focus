@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import type { CSSProperties } from 'react';
 import { useAppState } from '../../useAppState';
 import { Titlebar } from '../../components/Titlebar';
 import { ToastHost } from '../../components/ToastHost';
@@ -221,8 +222,20 @@ export function TaskCenter() {
     openClientMenu({ x: rect.left, y: rect.bottom }, client);
   }
 
+  const glassAlpha = (snapshot.windowGlassOpacity ?? 70) / 100;
+
   return (
-    <div className="allus-app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div
+      className="allus-app-bg"
+      style={
+        {
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          '--allus-app-bg-color': `rgba(0, 0, 1, ${glassAlpha})`,
+        } as CSSProperties
+      }
+    >
       <Titlebar title="CENTRAL DE TAREFAS · Cliente → Projeto → Tarefa → Subtarefa" />
       <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1, overflow: 'hidden' }}>
         <input

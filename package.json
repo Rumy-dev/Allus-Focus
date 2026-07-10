@@ -3,6 +3,10 @@
   "productName": "Allus Focus",
   "version": "0.1.1",
   "description": "Timer de foco/Pomodoro com rastreamento de tempo por cliente/projeto/tarefa, compartilhado pelo time.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rumy-dev/allus-clock.git"
+  },
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
@@ -28,6 +32,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.2",
     "@electron-forge/plugin-fuses": "^7.11.2",
     "@electron-forge/plugin-vite": "^7.11.2",
+    "@electron-forge/publisher-github": "^7.11.2",
     "@electron/fuses": "^1.8.0",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/react": "^19.2.17",
@@ -49,6 +54,7 @@
     "@supabase/supabase-js": "^2.110.1",
     "electron-squirrel-startup": "^1.0.1",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "update-electron-app": "^3.3.0"
   }
 }
