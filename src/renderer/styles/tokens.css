@@ -43,12 +43,17 @@
 .allus-app-bg {
   /* --allus-app-bg-color é setada inline por cada tela, calculada a
      partir da preferência windowGlassOpacity (rgba(0,0,1,alpha)) — sem
-     valor inline, cai no --allus-bg-1 sólido de sempre. */
+     valor inline, cai no --allus-bg-1 sólido de sempre. A camada de cor
+     fica NA FRENTE dos brilhos decorativos (truque do linear-gradient
+     degenerado, já que "background-color" só pode ir na última camada do
+     shorthand) — assim ela domina visualmente o efeito vidro/sólido, em
+     vez de ficar escondida atrás dos gradientes com opacidade fixa (que
+     antes deixava o slider quase imperceptível). */
   background:
+    linear-gradient(var(--allus-app-bg-color, var(--allus-bg-1)), var(--allus-app-bg-color, var(--allus-bg-1))),
     radial-gradient(circle at 15% 10%, rgba(236, 220, 1, 0.16), transparent 45%),
     radial-gradient(circle at 85% 20%, rgba(184, 172, 0, 0.14), transparent 40%),
-    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%),
-    var(--allus-app-bg-color, var(--allus-bg-1));
+    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%);
   border-radius: var(--allus-radius-lg);
   overflow: hidden;
 }
@@ -60,12 +65,15 @@
    SVG (allus-focus-watermark.svg); a imagem entra via
    --allus-watermark-image, setada inline pelo componente. */
 .allus-app-bg.allus-watermark {
+  /* Marca d'água fica acima de tudo (sempre visível); logo abaixo dela, a
+     camada de cor ajustável domina sobre os brilhos decorativos — mesma
+     lógica de ordering do .allus-app-bg acima. */
   background:
     var(--allus-watermark-image) no-repeat 100% 100% / 300px 300px,
+    linear-gradient(var(--allus-app-bg-color, var(--allus-bg-1)), var(--allus-app-bg-color, var(--allus-bg-1))),
     radial-gradient(circle at 15% 10%, rgba(236, 220, 1, 0.16), transparent 45%),
     radial-gradient(circle at 85% 20%, rgba(184, 172, 0, 0.14), transparent 40%),
-    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%),
-    var(--allus-app-bg-color, var(--allus-bg-1));
+    radial-gradient(circle at 50% 90%, rgba(245, 236, 107, 0.14), transparent 50%);
 }
 
 .allus-titlebar {
