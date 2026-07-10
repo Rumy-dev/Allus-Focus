@@ -5,7 +5,7 @@ import './Splash.css';
 // Mantido em JS também para o main process poder agendar o fechamento da
 // janela sem depender de um evento IPC vindo do renderer (mais robusto:
 // nenhuma promessa que pode nunca resolver deixa a splash presa).
-export const SPLASH_DURATION_MS = 3400;
+export const SPLASH_DURATION_MS = 8900;
 
 export function Splash() {
   const [reducedMotion, setReducedMotion] = useState(false);

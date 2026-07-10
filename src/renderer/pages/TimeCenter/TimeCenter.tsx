@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import allusWatermark from '../../assets/allus-focus-watermark.svg';
+import { useAppState } from '../../useAppState';
 import { Titlebar } from '../../components/Titlebar';
 import { DateFilterBar } from '../../components/DateFilterBar';
 import { ToastHost } from '../../components/ToastHost';
 import { invokeAction } from '../../invoke';
+import { useDataRefreshKey } from '../../useDataRefreshKey';
 import { formatDuration } from '../../../shared/types';
 import type { DateRangeFilter, SessionDateFilter, TimeReportPerson } from '../../../shared/types';
 
 export function TimeCenter() {
+  const snapshot = useAppState();
   const [filter, setFilter] = useState<SessionDateFilter>('Hoje');
   const [people, setPeople] = useState<TimeReportPerson[]>([]);
   const [total, setTotal] = useState(0);
@@ -16,6 +19,7 @@ export function TimeCenter() {
   const [loading, setLoading] = useState(false);
 
   const range: DateRangeFilter = { filter };
+  const refreshKey = useDataRefreshKey(snapshot);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +44,7 @@ export function TimeCenter() {
     return () => {
       cancelled = true;
     };
-  }, [filter]);
+  }, [filter, refreshKey]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

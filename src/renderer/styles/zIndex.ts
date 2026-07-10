@@ -2,7 +2,7 @@
 // mágicos de forma independente e acabem colidindo (ex: Tooltip, ToastHost
 // e TaskModeSelector usavam todos 1000 antes desta escala existir).
 export const Z = {
-  dropdown: 50, // TaskSuggestions — lista de sugestões inline
+  dropdown: 500, // TaskSuggestions — lista de sugestões inline
   accountMenu: 60, // MainWindow — dropdown de conta
   contextMenu: 200, // ContextMenu — menu de clique direito
   panel: 300, // TaskCenter — overlay interno da página

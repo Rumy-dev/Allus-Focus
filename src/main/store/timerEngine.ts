@@ -407,40 +407,6 @@ export async function completeSession(): Promise<void> {
   }
 }
 
-export async function skipToBreak(): Promise<void> {
-  const state = appStore.getSnapshot();
-  const session = state.activeSession;
-  if (!session || session.cycleKind !== 'Foco') return;
-  stopTicker();
-  const active = state.activeTaskLogs.find((l) => l.id === session.activeTaskLogId) ?? state.activeTaskLogs[state.activeTaskLogs.length - 1];
-  if (active) pendingCarryOverTitle = { taskId: active.taskId, subtaskId: null, title: active.taskTitle };
-
-  const interrupted = { ...session, status: 'Interrompido' as const, endedAt: new Date().toISOString(), activeTaskLogId: null };
-  await persistSession(interrupted);
-
-  const breakSession = await insertSession({
-    mode: session.mode,
-    cycleKind: 'Pausa',
-    plannedSeconds: POMO_MODES[session.mode].breakSeconds,
-    status: 'Ativo',
-    task: `Pausa - ${POMO_MODES[session.mode].title}`,
-  });
-  appStore.patch({ activeSession: breakSession, activeTaskLogs: [] });
-  startTicker();
-}
-
-export async function skipToFocus(): Promise<void> {
-  const state = appStore.getSnapshot();
-  const session = state.activeSession;
-  if (!session || session.cycleKind !== 'Pausa') return;
-  stopTicker();
-  const interrupted = { ...session, status: 'Interrompido' as const, endedAt: new Date().toISOString() };
-  await persistSession(interrupted);
-
-  // Não iniciar automaticamente — deixar o usuário escolher a próxima tarefa
-  appStore.patch({ activeSession: null });
-}
-
 export async function restart(sessionId: string): Promise<void> {
   const { data } = await supabase.from('sessions').select('mode').eq('id', sessionId).single();
   const mode = (data?.mode as PomoMode) ?? appStore.getSnapshot().selectedMode;
@@ -636,67 +602,37 @@ export async function flushBeforeQuit(): Promise<void> {
   await forceFlushActive();
 }
 
-// Carrega as 3 tarefas mais focadas (por frequência histórica) do usuário
-// logado. Cada tarefa retornada é o registro mais recente daquele taskId,
+// Carrega as 3 últimas tarefas distintas em que o usuário trabalhou
+// (recência, não frequência), para retomada rápida no painel flutuante e
+// atalhos. Cada tarefa retornada é o registro mais recente daquele taskId,
 // garantindo que título/projeto refletem o estado atual.
 export async function loadMostUsedTasks(): Promise<void> {
   try {
     const userId = currentUserId();
-    const { data, error } = await supabase.rpc('most_used_tasks', {
-      p_user_id: userId,
-      p_limit: 3,
-    });
+    const { data: allLogs, error } = await supabase
+      .from('task_logs')
+      .select('id, session_id, task_id, project_id, client_id, user_id, task_title, elapsed_seconds, is_done, started_at, completed_at')
+      .eq('user_id', userId)
+      .not('task_id', 'is', null)
+      .order('started_at', { ascending: false })
+      .limit(50); // margem suficiente pra achar 3 taskIds distintos sem varrer a tabela inteira
 
-    if (error || !data) {
-      console.warn('[timerEngine] RPC most_used_tasks falhou, usando fallback local', error);
-      const { data: allLogs, error: fallbackError } = await supabase
-        .from('task_logs')
-        .select('id, session_id, task_id, project_id, client_id, user_id, task_title, elapsed_seconds, is_done, started_at, completed_at')
-        .eq('user_id', userId)
-        .not('task_id', 'is', null)
-        .order('started_at', { ascending: false });
-      if (fallbackError || !allLogs) {
-        console.error('[timerEngine] falha ao carregar tarefas mais usadas', fallbackError);
-        return;
-      }
-
-      const taskIdCounts = new Map<string, number>();
-      const taskIdLatest = new Map<string, any>();
-      for (const log of allLogs) {
-        const tid = log.task_id;
-        if (!tid) continue;
-        taskIdCounts.set(tid, (taskIdCounts.get(tid) ?? 0) + 1);
-        if (!taskIdLatest.has(tid)) taskIdLatest.set(tid, log);
-      }
-      const sorted = Array.from(taskIdCounts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([tid]) => tid);
-      const mostUsedTasks: PomoTaskLog[] = sorted
-        .map((tid) => taskIdLatest.get(tid))
-        .filter((log): log is any => log !== undefined)
-        .map(mapTaskLog);
-      appStore.patch({ recentTasks: mostUsedTasks });
+    if (error || !allLogs) {
+      console.error('[timerEngine] falha ao carregar tarefas recentes', error);
       return;
     }
 
-    const mostUsedTasks: PomoTaskLog[] = (data ?? []).map((row: any) =>
-      mapTaskLog({
-        id: row.task_id,
-        session_id: null,
-        task_id: row.task_id,
-        project_id: row.project_id,
-        client_id: row.client_id,
-        user_id: userId,
-        task_title: row.task_title,
-        elapsed_seconds: row.elapsed_seconds ?? 0,
-        is_done: false,
-        started_at: row.started_at,
-        completed_at: null,
-      }),
-    );
+    const seen = new Set<string>();
+    const recent: PomoTaskLog[] = [];
+    for (const log of allLogs) {
+      const tid = log.task_id;
+      if (!tid || seen.has(tid)) continue;
+      seen.add(tid);
+      recent.push(mapTaskLog(log));
+      if (recent.length >= 3) break;
+    }
 
-    appStore.patch({ recentTasks: mostUsedTasks });
+    appStore.patch({ recentTasks: recent });
   } catch (err) {
     console.error('[timerEngine] erro ao loadMostUsedTasks', err);
   }

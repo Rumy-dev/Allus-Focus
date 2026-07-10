@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import type { Client, Project, Task } from '../../shared/types';
 import { displayPath } from '../../shared/types';
 import { invokeAction } from '../invoke';
@@ -9,9 +10,10 @@ interface TaskSuggestionsProps {
   projects: Project[];
   clients: Client[];
   onPick: () => void;
+  anchorRect: DOMRect | null;
 }
 
-export function TaskSuggestions({ query, tasks, projects, clients, onPick }: TaskSuggestionsProps) {
+export function TaskSuggestions({ query, tasks, projects, clients, onPick, anchorRect }: TaskSuggestionsProps) {
   const term = query.trim().toLowerCase();
   if (term.length < 2) return null;
 
@@ -26,8 +28,17 @@ export function TaskSuggestions({ query, tasks, projects, clients, onPick }: Tas
     onPick();
   }
 
-  return (
-    <div className="allus-glass allus-no-drag" style={panelStyle}>
+  const panelStyleWithAnchor: React.CSSProperties = anchorRect
+    ? {
+        ...panelStyle,
+        top: anchorRect.bottom + 6,
+        left: anchorRect.left,
+        width: anchorRect.width,
+      }
+    : panelStyle;
+
+  return createPortal(
+    <div className="allus-glass allus-no-drag" style={panelStyleWithAnchor}>
       <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', padding: '2px 8px 6px' }}>
         Já existe uma tarefa parecida — clique pra focar em vez de criar outra:
       </div>
@@ -43,18 +54,18 @@ export function TaskSuggestions({ query, tasks, projects, clients, onPick }: Tas
           </button>
         );
       })}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  zIndex: Z.dropdown,
-  marginTop: 6,
+  position: 'fixed',
+  zIndex: Z.popover,
   padding: 8,
-  width: 320,
   maxHeight: 220,
   overflowY: 'auto',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
 };
 
 const rowStyle: React.CSSProperties = {

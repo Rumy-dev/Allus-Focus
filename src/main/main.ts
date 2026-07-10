@@ -51,10 +51,12 @@ let wasOnline = true;
 // Mantida em sincronia manual com SPLASH_DURATION_MS em
 // src/renderer/pages/Splash/Splash.tsx (não importamos direto do renderer
 // pra não puxar React/CSS pro bundle do processo main).
-const SPLASH_DURATION_MS = 3400;
-const SPLASH_TIMEOUT_MS = 4500;
+const SPLASH_DURATION_MS = 7900;
+const SPLASH_TIMEOUT_MS = 9000;
 let splashClosed = false;
 let splashStartedAt = 0;
+let mainWindowReady = false;
+let splashMinElapsed = false;
 // A janela da splash carrega de forma assíncrona (mais lenta em dev, via
 // Vite dev server) — se o auth resolver antes do 'ready-to-show' disparar,
 // closeSplashAndReveal ainda não tem um splashStartedAt válido. Em vez de
@@ -73,6 +75,13 @@ function scheduleReveal(showTarget: () => void): void {
       showTarget();
     }
   }, remaining);
+}
+
+function tryRevealMainWindow(): void {
+  if (!mainWindowReady || !splashMinElapsed || splashClosed) return;
+  splashClosed = true;
+  windowManager.closeSplash();
+  windowManager.showMainWindow();
 }
 
 function closeSplashAndReveal(showTarget: () => void): void {
@@ -150,6 +159,19 @@ app.whenReady().then(async () => {
       if (!wasSignedIn) {
         wasSignedIn = true;
         windowManager.closeLogin();
+        mainWindowReady = false;
+        splashMinElapsed = false;
+        windowManager.showMainWindow(
+          () => {
+            mainWindowReady = true;
+            tryRevealMainWindow();
+          },
+          false,
+        );
+        setTimeout(() => {
+          splashMinElapsed = true;
+          tryRevealMainWindow();
+        }, SPLASH_DURATION_MS);
         // As três hidratações são independentes entre si. Rodar em paralelo
         // evita somar round-trips de rede; allSettled evita travar a abertura
         // do app quando uma consulta falha momentaneamente.
@@ -168,10 +190,17 @@ app.whenReady().then(async () => {
         // Inicia retry periódico da fila offline (a cada 60s)
         timerEngine.startPendingQueueRetryLoop();
         taskStore.subscribeRealtime();
-        closeSplashAndReveal(() => {
-          windowManager.showMainWindow();
+        if (mainWindowReady && splashMinElapsed) {
           windowManager.showFloatingPanel();
-        });
+        } else {
+          const checkFloating = setInterval(() => {
+            if (mainWindowReady && splashMinElapsed) {
+              clearInterval(checkFloating);
+              windowManager.showFloatingPanel();
+            }
+          }, 100);
+          setTimeout(() => clearInterval(checkFloating), SPLASH_TIMEOUT_MS);
+        }
         tray.initTray();
       }
     } else {
@@ -219,10 +248,10 @@ app.whenReady().then(async () => {
   // inteiro, ex: Cmd+H de esconder app no macOS).
 });
 
-app.on('activate', () => {
-  if (authManager.getState().status === 'signedIn') {
-    windowManager.showMainWindow();
-  } else {
-    windowManager.showLogin();
-  }
-});
+  app.on('activate', () => {
+    if (authManager.getState().status === 'signedIn') {
+      windowManager.showMainWindow();
+    } else {
+      windowManager.showLogin();
+    }
+  });

@@ -92,9 +92,5 @@ typings/
 out/
 out-*/
 
-# Release packaging artifacts
-release/**/source/
-release/**/*.zip
-release/**/*.dmg
-release/**/*.exe
-release/**/*.nupkg
+# Release packaging artifacts (entire build output, not just specific formats)
+release/

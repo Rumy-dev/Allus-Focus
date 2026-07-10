@@ -30,7 +30,22 @@
       "PowerShell(Get-Command pandoc -ErrorAction SilentlyContinue; Get-Command wkhtmltopdf -ErrorAction SilentlyContinue; @\\(\"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\",\"C:\\\\Program Files \\(x86\\)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe\",\"C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe\"\\) | ForEach-Object { Test-Path $_ })",
       "Bash(node -e ' *)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(timeout 20 npm start)",
+      "Bash(gh repo *)",
+      "Bash(tasklist //FI \"IMAGENAME eq electron.exe\")",
+      "Bash(taskkill //F //IM electron.exe //T)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://update.electronjs.org/Rumy-dev/allus-clock/win32-x64/0.1.4\")",
+      "Bash(curl -s \"https://update.electronjs.org/Rumy-dev/allus-clock/win32-x64/0.1.4\")",
+      "Bash(cp \"/c/Users/rumye/OneDrive/Desktop/Allus Clock/out/make/squirrel.windows/x64/Allus Focus-0.1.7 Setup.exe\" \"/c/Users/rumye/OneDrive/Desktop/Allus Focus Setup.exe\")",
+      "Read(//c/Users/rumye/OneDrive/Desktop/**)",
+      "Bash(xargs grep -l \"allus-app-bg-color\")",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -eq \"electron\" } | Select-Object Id)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\rumye\\\\.claude\\\\plans\" 2>/dev/null; echo ok)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\rumye\\.claude\\plans"
     ]
   }
 }

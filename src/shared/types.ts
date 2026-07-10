@@ -70,7 +70,7 @@ export interface UserPreferences {
   floatingPanelOpacity: number; // 0-100, quanto mais alto mais opaco
   floatingPanelSize: { width: number; height: number } | null; // null = auto-fit (modo normal)
   floatingPanelCompactSize: { width: number; height: number } | null; // null = default (modo compacto)
-  floatingPanelIsCompactMode: boolean; // true = modo compacto, false = modo normal
+  floatingPanelIsCompactMode: boolean; // true = mini widget (padrão), false = painel completo
   floatingPanelSizeLocked: boolean; // true = tamanho travado, ignora auto-resize e não é redimensionável
   floatingPanelExpanded: boolean; // true = drawer de extras (recentes, histórico, config) aberto
   notifyFocusStart: boolean;
@@ -85,7 +85,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   floatingPanelOpacity: 90,
   floatingPanelSize: null,
   floatingPanelCompactSize: null,
-  floatingPanelIsCompactMode: false,
+  floatingPanelIsCompactMode: true,
   floatingPanelSizeLocked: false,
   floatingPanelExpanded: false,
   notifyFocusStart: true,

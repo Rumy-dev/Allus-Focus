@@ -4,11 +4,13 @@ import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { useAppState } from '../../useAppState';
 import { Titlebar } from '../../components/Titlebar';
 import { ToastHost } from '../../components/ToastHost';
+import { useDataRefreshKey } from '../../useDataRefreshKey';
 import type { PulseResult, PulseTeamMember } from '../../../shared/types';
 import { formatDuration } from '../../../shared/types';
 
 export function Pulse() {
   const snapshot = useAppState();
+  const refreshKey = useDataRefreshKey(snapshot);
   const [pulse, setPulse] = useState<PulseResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,6 +69,11 @@ export function Pulse() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!snapshot) return;
+    loadPulse();
+  }, [refreshKey]);
 
   if (!snapshot) return <div className="allus-app-bg" style={{ height: '100%' }} />;
 

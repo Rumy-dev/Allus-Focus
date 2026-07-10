@@ -16,6 +16,7 @@ body {
   color: var(--allus-text-primary);
   overflow: hidden;
   user-select: none;
+  background: var(--allus-bg-2);
 }
 
 button,

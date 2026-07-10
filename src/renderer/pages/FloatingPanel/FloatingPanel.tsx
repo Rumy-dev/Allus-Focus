@@ -16,12 +16,13 @@ export function FloatingPanel() {
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [myHoursSeconds, setMyHoursSeconds] = useState<number | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMini, setIsMini] = useState(true);
   const didSyncExpandedRef = useRef(false);
+  const didSyncMiniRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const modalCardRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
-  const wasSessionActiveRef = useRef<boolean>(false);
 
   const panelOpacity = (snapshot?.floatingPanelOpacity ?? 90) / 100;
 
@@ -38,6 +39,21 @@ export function FloatingPanel() {
     const next = !isExpanded;
     setIsExpanded(next);
     invokeAction('prefs:setFloatingPanelExpanded', { expanded: next });
+  }
+
+  // Sincroniza o modo mini/completo com a preferência salva, uma única vez
+  // ao carregar (depois disso, o toggle local manda).
+  useEffect(() => {
+    if (didSyncMiniRef.current) return;
+    if (snapshot?.floatingPanelIsCompactMode === undefined) return;
+    didSyncMiniRef.current = true;
+    setIsMini(snapshot.floatingPanelIsCompactMode);
+  }, [snapshot?.floatingPanelIsCompactMode]);
+
+  function toggleMini() {
+    const next = !isMini;
+    setIsMini(next);
+    invokeAction('prefs:setFloatingPanelIsCompactMode', { compact: next });
   }
 
   useKeyboardShortcuts({
@@ -83,21 +99,16 @@ export function FloatingPanel() {
         return;
       }
 
-      // Drawer expandido (sem modal): tamanho segue o conteúdo do painel.
-      // Mas se o usuário já redimensionou manualmente, respeita o tamanho customizado.
-      if (isExpanded) {
-        if (snapshot?.floatingPanelSize !== null) return;
-        const el = contentRef.current;
-        if (!el) return;
-        const width = 300;
-        const height = Math.min(el.scrollHeight + 48, window.screen.availHeight * 0.85);
-        applySize(width, height);
-        return;
-      }
-
-      // Colapsado, sem modal: não força redimensionamento automático
-      // O usuário pode ter redimensionado manualmente (floatingPanelSize !== null)
-      // e queremos respeitar essa preferência
+      // Sem modal: tamanho segue o conteúdo real do painel (mini, recolhido
+      // ou expandido — a altura varia conforme o modo e as 0-3 últimas
+      // tarefas). Se o usuário já redimensionou manualmente, respeita o
+      // tamanho customizado.
+      if (snapshot?.floatingPanelSize !== null) return;
+      const el = contentRef.current;
+      if (!el) return;
+      const width = isMini ? 190 : 300;
+      const height = Math.min(el.scrollHeight + (isMini ? 24 : 48), window.screen.availHeight * 0.85);
+      applySize(width, height);
     };
 
     function applySize(width: number, height: number) {
@@ -113,22 +124,19 @@ export function FloatingPanel() {
       (el): el is HTMLDivElement => el !== null,
     );
     if (observed.length === 0) {
-      if (isExpanded) {
-        // Painel expandido: acompanha o crescimento do conteúdo do drawer
-        const el = contentRef.current;
-        if (!el) {
-          measure();
-          return;
-        }
-        const observer = new ResizeObserver(measure);
-        observer.observe(el);
-        measure();
-        return () => observer.disconnect();
-      }
-      // Sem modais e colapsado: não força redimensionamento se o usuário já redimensionou manualmente
+      // Sem modais: acompanha o crescimento/encolhimento do conteúdo do
+      // painel (compacto ou expandido), a menos que o usuário já tenha
+      // redimensionado manualmente.
       if (snapshot?.floatingPanelSize !== null) return;
+      const el = contentRef.current;
+      if (!el) {
+        measure();
+        return;
+      }
+      const observer = new ResizeObserver(measure);
+      observer.observe(el);
       measure();
-      return;
+      return () => observer.disconnect();
     }
     const observer = new ResizeObserver(measure);
     observed.forEach((el) => observer.observe(el));
@@ -138,7 +146,7 @@ export function FloatingPanel() {
     // colapsado/sem-modal — não deve disparar o efeito de novo sozinho, senão
     // qualquer resize (inclusive o auto-fit programático abaixo) re-executa
     // esse efeito e cria um vaivém de resizes que aparenta tremor.
-  }, [modeSelectTask, showProjectPicker, isExpanded]);
+  }, [modeSelectTask, showProjectPicker, isExpanded, isMini]);
 
   useEffect(() => {
     if (!snapshot?.auth.profile) return;
@@ -154,42 +162,15 @@ export function FloatingPanel() {
     };
   }, [snapshot?.auth.profile?.id]);
 
-  // Redimensionar ao iniciar/parar sessão (só se não travado e recolhido —
-  // expandido já é tratado pelo auto-fit do drawer)
-  useEffect(() => {
-    const isSessionRunning = snapshot?.activeSession?.status === 'Ativo';
-    const wasSessionRunning = wasSessionActiveRef.current;
-    const sizeLocked = snapshot?.floatingPanelSizeLocked ?? false;
-
-    if (isSessionRunning !== wasSessionRunning) {
-      wasSessionActiveRef.current = isSessionRunning;
-
-      if (!sizeLocked && !isExpanded) {
-        const hasCustomSize = snapshot?.floatingPanelSize;
-        if (!hasCustomSize) {
-          const width = 300;
-          const height = isSessionRunning ? 320 : 280;
-          window.allus.invoke('window:setFloatingHeight', { width, height });
-        }
-      }
-    }
-  }, [snapshot?.activeSession?.status, snapshot?.floatingPanelSize, snapshot?.floatingPanelSizeLocked, isExpanded]);
-
-  // Voltar ao tamanho compacto ao recolher o drawer
-  useEffect(() => {
-    if (isExpanded) return;
-    const sizeLocked = snapshot?.floatingPanelSizeLocked ?? false;
-    if (sizeLocked) return;
-    if (snapshot?.floatingPanelSize) return;
-    const isSessionRunning = snapshot?.activeSession?.status === 'Ativo';
-    window.allus.invoke('window:setFloatingHeight', { width: 300, height: isSessionRunning ? 320 : 280 });
-  }, [isExpanded]);
-
   if (!snapshot) return <div className="allus-app-bg" style={{ height: '100%' }} />;
 
   const lastTask = snapshot.recentTasks[0]
     ? { taskId: snapshot.recentTasks[0].taskId, title: snapshot.recentTasks[0].taskTitle }
     : null;
+
+  // Últimas 3 tarefas trabalhadas, excluindo a que já está em foco agora
+  // (não faz sentido oferecer "retomar" a própria tarefa ativa).
+  const switchableRecentTasks = snapshot.recentTasks.filter((t) => t.taskId !== activeLog?.taskId).slice(0, 3);
 
   const destinoProject = snapshot.projects.find((p) => p.id === snapshot.selectedProjectId);
   const destinoClient = destinoProject ? snapshot.clients.find((c) => c.id === destinoProject.clientId) : null;
@@ -218,7 +199,6 @@ export function FloatingPanel() {
     label = breadcrumb || activeLog.taskTitle;
   }
 
-  const skipLabel = session?.cycleKind === 'Pausa' ? '⏭ foco' : '⏭ pausa';
   const isFocus = session?.cycleKind === 'Foco';
   const cycleColor = isFocus ? '#ecdc01' : '#fafafa';
   const cycleEmoji = isFocus ? '🔴' : '🟢';
@@ -239,8 +219,17 @@ export function FloatingPanel() {
     e?.preventDefault();
     if (!text.trim()) return;
     await invokeAction('task:quickAdd', { title: text.trim(), avulsa: false });
+    await invokeAction('timer:resume', undefined);
     setText('');
     setShowAdd(false);
+  }
+
+  // Atalho do modo mini: assume a tarefa (cria/reaproveita o log dentro da
+  // sessão atual, sem perguntar tipo de ciclo) e garante que o timer esteja
+  // rodando — sem abrir o TaskModeSelector nem sair do tamanho compacto.
+  async function quickStartTask(taskId: string | null, title: string) {
+    await invokeAction('task:focus', { taskId, subtaskId: null, title });
+    await invokeAction('timer:resume', undefined);
   }
 
   // Opacidades padronizadas em função da preferência do usuário
@@ -264,7 +253,148 @@ export function FloatingPanel() {
         flexDirection: 'column',
       } as any}
     >
-      <div ref={contentRef} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-4)', flex: 1, overflowY: 'auto' }}>
+      <div ref={contentRef} style={{ display: 'flex', flexDirection: 'column', gap: isMini ? 6 : 'var(--allus-space-4)', flex: 1, overflowY: 'auto' }}>
+      {isMini ? (
+        <>
+          {/* Alça de arraste + status + botão pra abrir o painel completo */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+            <div className="allus-drag" style={{ width: '4px', height: '14px', cursor: 'grab', flexShrink: 0, borderRadius: 2, background: `rgba(255,255,255,${borderOpacity * 0.2})` }} title="Arrastar painel" />
+            <span className="allus-status-dot" data-status={statusDotStatus} style={{ width: 6, height: 6, borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />
+            <div style={{ flex: 1 }} />
+            <Tooltip text="Abrir painel completo">
+              <button className="allus-no-drag" onClick={toggleMini} style={{ ...miniIconBtn, width: 18, height: 18, fontSize: 10 }}>
+                ⤢
+              </button>
+            </Tooltip>
+          </div>
+
+          {/* Relógio pequeno */}
+          <div
+            style={{
+              fontFamily: 'var(--allus-font-mono)',
+              fontSize: 20,
+              fontWeight: 700,
+              color: session ? alertColor : 'var(--allus-text-muted)',
+              letterSpacing: '-0.3px',
+              textAlign: 'center',
+            }}
+          >
+            {session ? formatDuration(remaining) : '–'}
+          </div>
+
+          {/* Tarefa atual, se houver — uma linha só */}
+          {session && (
+            <div
+              className="allus-no-drag"
+              style={{
+                fontSize: 10,
+                color: 'var(--allus-text-muted)',
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title={label}
+            >
+              {label}
+            </div>
+          )}
+
+          {/* Controles: play/pause, stop, nova tarefa — só ícone */}
+          <div className="allus-no-drag" style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+            {!session || session.status === 'Interrompido' || session.status === 'Concluído' ? (
+              <Tooltip text={lastTask ? `Continuar: ${lastTask.title}` : 'Começar'}>
+                <button
+                  onClick={() => (lastTask ? quickStartTask(lastTask.taskId, lastTask.title) : showAdd ? submitAdd() : setShowAdd(true))}
+                  style={{ ...miniIconBtn, color: '#ecdc01', borderColor: 'rgba(236, 220, 1, 0.4)' }}
+                >
+                  ▶
+                </button>
+              </Tooltip>
+            ) : (
+              <>
+                <Tooltip text={session.status === 'Ativo' ? 'Pausar' : 'Retomar'}>
+                  <button
+                    onClick={() => invokeAction('timer:playPause', undefined)}
+                    style={{ ...miniIconBtn, color: session.status === 'Ativo' ? '#ffb84d' : '#ecdc01' }}
+                  >
+                    {session.status === 'Ativo' ? '⏸' : '▶'}
+                  </button>
+                </Tooltip>
+                <Tooltip text="Parar">
+                  <button
+                    onClick={() => invokeAction('timer:stop', undefined)}
+                    style={{ ...miniIconBtn, color: 'var(--allus-status-interrompido)' }}
+                  >
+                    ⏹
+                  </button>
+                </Tooltip>
+              </>
+            )}
+            <Tooltip text="Nova tarefa">
+              <button onClick={() => setShowAdd((v) => !v)} style={miniIconBtn}>
+                +
+              </button>
+            </Tooltip>
+          </div>
+
+          {/* Últimas 3 tarefas — linhas bem enxutas, clique já assume e roda */}
+          {switchableRecentTasks.length > 0 && (
+            <div className="allus-no-drag" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {switchableRecentTasks.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => quickStartTask(t.taskId, t.taskTitle)}
+                  style={{
+                    width: '100%',
+                    padding: '4px 6px',
+                    borderRadius: 5,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.04)',
+                    fontSize: 10,
+                    textAlign: 'left',
+                    color: 'var(--allus-text-secondary)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                  title={`Retomar: ${t.taskTitle}`}
+                >
+                  {t.taskTitle}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Campo "Nova tarefa" — só quando não há nenhuma tarefa recente ainda */}
+          {showAdd && (
+            <form className="allus-no-drag" onSubmit={submitAdd} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <input
+                autoFocus
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Nome da tarefa..."
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 5,
+                  padding: '5px 7px',
+                  color: 'var(--allus-text-primary)',
+                  fontSize: 11,
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitAdd(e as any);
+                  if (e.key === 'Escape') setShowAdd(false);
+                }}
+              />
+            </form>
+          )}
+        </>
+      ) : (
+        <>
       {/* Seção superior: Status, Ciclo, Timer, Progresso — sem no-drag, não tem
           nada clicável aqui, então o espaço vazio arrasta o painel como o resto */}
       <div
@@ -288,6 +418,11 @@ export function FloatingPanel() {
               {cycleEmoji} {isFocus ? 'FOCO' : 'PAUSA'}
             </div>
           )}
+          <Tooltip text="Modo mini">
+            <button className="allus-no-drag" onClick={toggleMini} style={{ ...miniIconBtn, width: 20, height: 20, fontSize: 10, flexShrink: 0 }}>
+              ⤡
+            </button>
+          </Tooltip>
         </div>
 
         {/* Timer grande no topo */}
@@ -483,44 +618,49 @@ export function FloatingPanel() {
           >
             ⏹ Parar
           </button>
-          <Tooltip text="Adicionar tarefa (+)">
+          <Tooltip text="Trocar de tarefa">
             <button
               style={{
                 ...iconBtn,
                 transition: 'all 0.2s ease',
               }}
-              onClick={() => setShowAdd((v) => !v)}
+              onClick={() => setModeSelectTask({ taskId: null, title: '' })}
             >
-              +
+              ↻
             </button>
           </Tooltip>
         </div>
       )}
 
-      {/* Botão "Pronto" - aparece quando há sessão ativa */}
-      {session && (
-        <button
-          onClick={() =>
-            isFocus
-              ? invokeAction('timer:skipToBreak', undefined)
-              : invokeAction('timer:skipToFocus', undefined)
-          }
-          style={{
-            padding: '12px 16px',
-            borderRadius: 8,
-            border: 'none',
-            fontWeight: 700,
-            cursor: 'pointer',
-            fontSize: 13,
-            background: cycleColor,
-            color: '#000001',
-            transition: 'all 0.2s ease',
-            boxShadow: `0 4px 12px ${cycleColor}40`,
-          }}
-          title={skipLabel}
-        >
-          ✓ Pronto
-        </button>
+      {/* Últimas 3 tarefas trabalhadas — atalho de retomada, sem abrir telas maiores */}
+      {switchableRecentTasks.length > 0 && (
+        <div className="allus-no-drag" style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {switchableRecentTasks.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setModeSelectTask({ taskId: t.taskId, title: t.taskTitle })}
+              style={{
+                width: '100%',
+                padding: '7px 10px',
+                borderRadius: 6,
+                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.04)',
+                fontSize: 11,
+                textAlign: 'left',
+                color: 'var(--allus-text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title={`Retomar: ${t.taskTitle}`}
+            >
+              {t.taskTitle}
+            </button>
+          ))}
+        </div>
       )}
 
       {/* Campo "Nova tarefa" - só aparece quando clica + */}
@@ -612,6 +752,24 @@ export function FloatingPanel() {
       {/* Drawer expandido — recentes, histórico, configurações */}
       {isExpanded && (
         <div className="allus-no-drag" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)', paddingTop: 'var(--allus-space-2)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          {/* Nova tarefa avulsa */}
+          <button
+            onClick={() => setShowAdd((v) => !v)}
+            style={{
+              padding: '8px 10px',
+              borderRadius: 6,
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(255,255,255,0.04)',
+              color: 'var(--allus-text-secondary)',
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            + Nova tarefa
+          </button>
+
           {/* Break Reminder - quando está em pausa */}
           {session && session.cycleKind === 'Pausa' && session.status === 'Ativo' && (
             <div
@@ -654,37 +812,6 @@ export function FloatingPanel() {
             Minhas horas (7 dias): <span style={{ color: '#ecdc01', fontWeight: 600 }}>{myHoursSeconds === null ? '...' : formatHoursSummary(myHoursSeconds)}</span>
           </button>
 
-          {/* Tarefas recentes */}
-          {snapshot.recentTasks.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-2)' }}>
-              <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', fontWeight: 500 }}>Recentes</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {snapshot.recentTasks.map((t) => (
-                  <button
-                    key={t.id}
-                    style={{
-                      width: '100%',
-                      padding: '8px 10px',
-                      borderRadius: 6,
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      background: 'rgba(255,255,255,0.04)',
-                      fontSize: 12,
-                      textAlign: 'left',
-                      color: 'var(--allus-text-primary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      fontWeight: 500,
-                    }}
-                    onClick={() => setModeSelectTask({ taskId: t.taskId, title: t.taskTitle })}
-                    title={t.taskTitle}
-                  >
-                    {t.taskTitle}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Configurações */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-2)' }}>
             <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', fontWeight: 500 }}>Configurações</div>
@@ -714,6 +841,8 @@ export function FloatingPanel() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
       </div>
 
@@ -752,4 +881,20 @@ const iconBtn: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   cursor: 'pointer',
+};
+
+const miniIconBtn: React.CSSProperties = {
+  width: 24,
+  height: 24,
+  borderRadius: 6,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--allus-text-primary)',
+  fontSize: 11,
+  fontWeight: 600,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  flexShrink: 0,
 };

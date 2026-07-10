@@ -8,6 +8,7 @@ import { DateFilterBar } from '../../components/DateFilterBar';
 import { BarChart } from '../../components/BarChart';
 import { TrendChart } from '../../components/TrendChart';
 import { ToastHost } from '../../components/ToastHost';
+import { useDataRefreshKey } from '../../useDataRefreshKey';
 import type { DateRangeFilter, SessionDateFilter, TimeReportPerson } from '../../../shared/types';
 
 type DrillLevel = 'clients' | 'projects' | 'tasks';
@@ -26,6 +27,7 @@ export function Dashboard() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [report, setReport] = useState<{ people: TimeReportPerson[] } | null>(null);
   const [trend, setTrend] = useState<{ date: string; totalSeconds: number }[]>([]);
+  const refreshKey = useDataRefreshKey(snapshot);
 
   const loadReport = async () => {
     try {
@@ -54,7 +56,7 @@ export function Dashboard() {
   useEffect(() => {
     loadReport();
     loadTrend();
-  }, [sessionFilter, drill, selectedUserId]);
+  }, [sessionFilter, drill, selectedUserId, refreshKey]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

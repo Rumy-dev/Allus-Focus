@@ -35,8 +35,6 @@ export function registerIpcHandlers(): void {
   handle('timer:pause', async () => timerEngine.pause());
   handle('timer:resume', async () => timerEngine.resume());
   handle('timer:stop', async () => timerEngine.stop());
-  handle('timer:skipToFocus', async () => timerEngine.skipToFocus());
-  handle('timer:skipToBreak', async () => timerEngine.skipToBreak());
   handle('timer:restart', async ({ sessionId }) => timerEngine.restart(sessionId));
   handle('timer:setMode', async ({ mode }) => timerEngine.setMode(mode));
   handle('session:delete', async ({ sessionId }) => timerEngine.deleteSession(sessionId));
@@ -114,6 +112,10 @@ export function registerIpcHandlers(): void {
   handle('prefs:setFloatingPanelExpanded', async ({ expanded }) => {
     await authManager.updatePreferences({ floatingPanelExpanded: expanded });
     appStore.patch({ floatingPanelExpanded: expanded });
+  });
+  handle('prefs:setFloatingPanelIsCompactMode', async ({ compact }) => {
+    await authManager.updatePreferences({ floatingPanelIsCompactMode: compact });
+    appStore.patch({ floatingPanelIsCompactMode: compact });
   });
   handle('prefs:setNotify', async ({ event, enabled }) => {
     const key = (`notify${event.charAt(0).toUpperCase()}${event.slice(1)}`) as

@@ -56,8 +56,6 @@ export interface IpcInvokeMap {
   'timer:pause': () => void;
   'timer:resume': () => void;
   'timer:stop': () => void;
-  'timer:skipToFocus': () => void;
-  'timer:skipToBreak': () => void;
   'timer:restart': (args: { sessionId: string }) => void;
   'timer:setMode': (args: { mode: PomoMode }) => void;
   'session:delete': (args: { sessionId: string }) => void;
@@ -98,6 +96,7 @@ export interface IpcInvokeMap {
   'prefs:setFloatingPanelSize': (args: { size: { width: number; height: number } | null }) => void;
   'prefs:setFloatingPanelSizeLocked': (args: { locked: boolean }) => void;
   'prefs:setFloatingPanelExpanded': (args: { expanded: boolean }) => void;
+  'prefs:setFloatingPanelIsCompactMode': (args: { compact: boolean }) => void;
   'prefs:setNotify': (args: { event: 'focusStart' | 'focusEnd' | 'breakEnd'; enabled: boolean }) => void;
   'prefs:setAutoLaunch': (args: { enabled: boolean }) => void;
   'account:updateName': (args: { fullName: string }) => void;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { useAppState } from '../../useAppState';
@@ -13,6 +13,7 @@ import { Toggle } from '../../components/Toggle';
 import { useKeyboardShortcuts } from '../../useKeyboardShortcuts';
 import { invokeAction, confirmDialog } from '../../invoke';
 import { toast } from '../../toast';
+import { useDataRefreshKey } from '../../useDataRefreshKey';
 import { Z } from '../../styles/zIndex';
 import { POMO_MODES, displayPath, formatDuration } from '../../../shared/types';
 import type { PomoMode, PomoSession, SessionDateFilter } from '../../../shared/types';
@@ -30,6 +31,7 @@ const KEYBOARD_SHORTCUTS: { keys: string; description: string }[] = [
 
 export function MainWindow() {
   const snapshot = useAppState();
+  const refreshKey = useDataRefreshKey(snapshot);
   const [sessions, setSessions] = useState<PomoSession[]>([]);
   const [sessionFilter, setSessionFilter] = useState<SessionDateFilter>('Todas');
   const [historyPage, setHistoryPage] = useState(1);
@@ -51,6 +53,7 @@ export function MainWindow() {
   const [appInfo, setAppInfo] = useState<{ version: string; isDev: boolean; platform: string } | null>(null);
   const [showNotifPrefs, setShowNotifPrefs] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const quickAddWrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,7 +63,7 @@ export function MainWindow() {
     return () => {
       cancelled = true;
     };
-  }, [sessionFilter, snapshot?.activeSession?.id, snapshot?.activeSession?.status]);
+  }, [sessionFilter, refreshKey]);
 
   useEffect(() => {
     setHistoryPage(1);
@@ -126,8 +129,6 @@ export function MainWindow() {
     setQuickAddSaving(false);
     setQuickAddText('');
   }
-
-  const skipLabel = session?.cycleKind === 'Pausa' ? 'Pular descanso' : 'Pular bloco';
 
   async function submitOnboarding(e: React.FormEvent) {
     e.preventDefault();
@@ -677,8 +678,8 @@ export function MainWindow() {
             )}
           </div>
 
-          <form onSubmit={submitQuickAdd} style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
-            <div style={{ flex: 1, position: 'relative' }}>
+          <form onSubmit={submitQuickAdd} style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative', zIndex: 2 }}>
+            <div ref={quickAddWrapRef} style={{ flex: 1, position: 'relative', zIndex: 2 }}>
               <input
                 value={quickAddText}
                 onChange={(e) => setQuickAddText(e.target.value)}
@@ -691,6 +692,7 @@ export function MainWindow() {
                 projects={snapshot.projects}
                 clients={snapshot.clients}
                 onPick={() => setQuickAddText('')}
+                anchorRect={quickAddWrapRef.current?.getBoundingClientRect() ?? null}
               />
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
@@ -820,16 +822,6 @@ export function MainWindow() {
         </button>
         <button style={pillButtonStyle} onClick={() => invokeAction('timer:stop', undefined)}>
           ⏹
-        </button>
-        <button
-          style={pillButtonStyle}
-          onClick={() =>
-            session?.cycleKind === 'Pausa'
-              ? invokeAction('timer:skipToFocus', undefined)
-              : invokeAction('timer:skipToBreak', undefined)
-          }
-        >
-          {skipLabel}
         </button>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>

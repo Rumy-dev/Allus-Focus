@@ -15,7 +15,7 @@ import * as timerEngine from '../store/timerEngine';
 // ilegível. Voltamos pro fallback opaco: aceita o quadrado atrás do canto
 // arredondado como limitação cosmética conhecida, em troca de um app que
 // renderiza certo. Use nas janelas SEM transparência variável de verdade.
-const OPAQUE_FALLBACK_BG = '#000001';
+const OPAQUE_FALLBACK_BG = '#0e0e0e';
 // '#00000000' = alpha real — só pra janelas com transparência de verdade
 // (Splash, painel flutuante com slider de opacidade). Um fallback opaco
 // aqui faria o Chromium misturar o rgba(...) do CSS contra preto opaco em
@@ -142,15 +142,6 @@ function attachWindowShortcuts(win: BrowserWindow): void {
           }
         } else if (state.activeSession.status !== 'Ativo') {
           timerEngine.resume().catch((err) => console.error('[shortcut] Cmd/Ctrl+F resume falhou', err));
-        }
-        event.preventDefault();
-        break;
-      }
-      case 'b': {
-        const state = appStore.getSnapshot();
-        if (state.activeSession) {
-          const action = state.activeSession.cycleKind === 'Foco' ? timerEngine.skipToBreak() : timerEngine.skipToFocus();
-          action.catch((err) => console.error('[shortcut] Cmd/Ctrl+B falhou', err));
         }
         event.preventDefault();
         break;
@@ -290,10 +281,11 @@ export function closeSplash(): void {
   win.destroy();
 }
 
-export function showMainWindow(): void {
+export function showMainWindow(onShown?: () => void, showImmediately = true): void {
   if (windows.main && !windows.main.isDestroyed()) {
-    windows.main.show();
+    if (showImmediately) windows.main.show();
     windows.main.focus();
+    onShown?.();
     return;
   }
   const win = new BrowserWindow({
@@ -313,7 +305,12 @@ export function showMainWindow(): void {
     // o backgroundColor opaco (mesmo motivo do painel flutuante, ver
     // showFloatingPanel). Efeito vidro fica só no CSS (.allus-glass,
     // backdrop-filter).
+    show: false,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
+  });
+  win.once('ready-to-show', () => {
+    if (showImmediately) win.show();
+    onShown?.();
   });
   loadPage(win, 'main');
   hideInsteadOfClose(win);
@@ -333,24 +330,30 @@ export function showFloatingPanel(): void {
   const sizeLocked = snapshot.floatingPanelSizeLocked ?? false;
   const hasActiveSession = snapshot.activeSession?.status === 'Ativo';
 
-  // O "modo compacto" foi removido da interface (a janela sempre renderiza
-  // o layout normal agora), mas contas com a preferência antiga ainda
-  // gravada (floatingPanelIsCompactMode: true) abriam a janela em ~218x54px
-  // — pequena demais pro layout atual, deixando os botões inacessíveis.
-  // Ignoramos essa preferência aqui e sempre usamos o tamanho normal.
+  // Chutes iniciais só pro primeiro paint — o auto-fit do renderer
+  // (ResizeObserver em FloatingPanel.tsx) corrige a altura real logo em
+  // seguida, conforme o modo (mini/completo/expandido) e a lista de
+  // recentes (0-3 itens). Diferente da tentativa anterior de "modo
+  // compacto" (que usava um tamanho fixo persistido e travava com o layout
+  // desatualizado, ver histórico), aqui o tamanho nunca fica preso a um
+  // valor stale: o conteúdo real sempre dita o resize.
   let width: number;
   let height: number;
   const savedSize = snapshot.floatingPanelSize;
+  const isMini = snapshot.floatingPanelIsCompactMode ?? true;
   if (savedSize?.width && savedSize?.height) {
     width = savedSize.width;
     height = savedSize.height;
+  } else if (isMini) {
+    // Mini widget (padrão): relógio pequeno, botões de ícone, últimas 3.
+    width = 190;
+    height = hasActiveSession ? 190 : 140;
   } else if (snapshot.floatingPanelExpanded) {
     width = hasActiveSession ? 429 : 307;
     height = hasActiveSession ? 479 : 390;
   } else {
-    // Painel recolhido (padrão): tamanho compacto estilo widget minimalista
     width = 300;
-    height = hasActiveSession ? 320 : 280;
+    height = hasActiveSession ? 360 : 320;
   }
 
   const win = new BrowserWindow({
