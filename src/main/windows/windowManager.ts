@@ -184,11 +184,9 @@ export function showLogin(): void {
     // builds empacotados (processo "frio") esse frame mostra o desktop por
     // trás da janela em vez do fundo sólido do app (ver showMainWindow).
     backgroundColor: '#000001',
-    show: false,
     icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
-  win.once('ready-to-show', () => win.show());
   loadPage(win, 'login');
   win.on('closed', () => {
     windows.login = null;
@@ -283,11 +281,9 @@ export function showMainWindow(): void {
     // Em dev o processo já está "aquecido" e isso normalmente não aparece,
     // por isso o bug só se manifestava no instalado.
     backgroundColor: '#000001',
-    show: false,
     icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
-  win.once('ready-to-show', () => win.show());
   loadPage(win, 'main');
   hideInsteadOfClose(win);
   win.on('closed', () => {
@@ -342,7 +338,6 @@ export function showFloatingPanel(): void {
     // '#00000000' (alpha zero, mesmo valor da Splash) é o fallback certo
     // pra quem precisa de transparência real.
     backgroundColor: '#00000000',
-    show: false,
     icon: iconPath(),
     resizable: !sizeLocked,
     minWidth: 100,
@@ -351,7 +346,6 @@ export function showFloatingPanel(): void {
     skipTaskbar: true,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
-  win.once('ready-to-show', () => win.show());
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   loadPage(win, 'floating');
@@ -440,11 +434,9 @@ export function showTaskCenter(): void {
     frame: false,
     transparent: true,
     backgroundColor: '#000001',
-    show: false,
     icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
-  win.once('ready-to-show', () => win.show());
   loadPage(win, 'taskCenter');
   hideInsteadOfClose(win);
   win.on('closed', () => {
@@ -467,11 +459,9 @@ export function showTimeCenter(): void {
     frame: false,
     transparent: true,
     backgroundColor: '#000001',
-    show: false,
     icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
-  win.once('ready-to-show', () => win.show());
   loadPage(win, 'timeCenter');
   hideInsteadOfClose(win);
   win.on('closed', () => {
@@ -494,11 +484,9 @@ export function showDashboard(): void {
     frame: false,
     transparent: true,
     backgroundColor: '#000001',
-    show: false,
     icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
-  win.once('ready-to-show', () => win.show());
   loadPage(win, 'dashboard');
   hideInsteadOfClose(win);
   win.on('closed', () => {
@@ -521,11 +509,9 @@ export function showPulse(): void {
     frame: false,
     transparent: true,
     backgroundColor: '#000001',
-    show: false,
     icon: iconPath(),
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
-  win.once('ready-to-show', () => win.show());
   loadPage(win, 'pulse');
   hideInsteadOfClose(win);
   win.on('closed', () => {
