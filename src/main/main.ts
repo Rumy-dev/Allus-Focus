@@ -24,7 +24,21 @@ app.on('window-all-closed', () => {
   // intencionalmente vazio
 });
 
-app.on('before-quit', () => windowManager.setQuitting(true));
+const QUIT_FLUSH_TIMEOUT_MS = 5000;
+let quitFlushDone = false;
+
+app.on('before-quit', (event) => {
+  windowManager.setQuitting(true);
+  if (quitFlushDone) return; // already flushed, let this quit proceed
+  event.preventDefault();
+  Promise.race([
+    timerEngine.flushBeforeQuit(),
+    new Promise<void>((resolve) => setTimeout(resolve, QUIT_FLUSH_TIMEOUT_MS)),
+  ]).finally(() => {
+    quitFlushDone = true;
+    app.quit();
+  });
+});
 
 let wasSignedIn = false;
 let wasOnline = true;
@@ -149,6 +163,10 @@ app.whenReady().then(async () => {
             console.error(`[main] hidratação inicial ${index} falhou`, result.reason);
           }
         });
+        // Retenta fila offline que pode ter se acumulado desde a última sessão
+        await timerEngine.forceFlushActive().catch((err) => console.error('[main] flush na assinatura falhou', err));
+        // Inicia retry periódico da fila offline (a cada 60s)
+        timerEngine.startPendingQueueRetryLoop();
         taskStore.subscribeRealtime();
         closeSplashAndReveal(() => {
           windowManager.showMainWindow();
@@ -159,6 +177,14 @@ app.whenReady().then(async () => {
     } else {
       const hadSignedInSession = wasSignedIn;
       wasSignedIn = false;
+      // Para retry loop e faz flush final antes de limpar estado
+      timerEngine.stopPendingQueueRetryLoop();
+      if (hadSignedInSession) {
+        await Promise.race([
+          timerEngine.flushBeforeQuit(),
+          new Promise<void>((resolve) => setTimeout(resolve, QUIT_FLUSH_TIMEOUT_MS)),
+        ]).catch((err) => console.error('[main] flush no sign-out falhou', err));
+      }
       appStore.patch({
         auth: { status: 'signedOut', profile: null },
         activeSession: null,

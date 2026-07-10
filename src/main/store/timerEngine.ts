@@ -7,10 +7,14 @@ import { AVULSO_PROJECT_ID } from './taskStore';
 import { POMO_MODES, displayPath } from '../../shared/types';
 import type { PomoMode, PomoSession, PomoTaskLog } from '../../shared/types';
 import { randomUUID } from 'crypto';
+import { loadPendingQueue, savePendingQueue } from './pendingQueueStore';
 
 let tickHandle: ReturnType<typeof setInterval> | null = null;
+let pendingQueueRetryHandle: ReturnType<typeof setInterval> | null = null;
 let pendingCarryOverTitle: { taskId: string | null; subtaskId: string | null; title: string } | null = null;
-let pendingInserts: Array<{ type: 'session' | 'task_log'; payload: any }> = [];
+let pendingInserts: Array<{ type: 'session' | 'task_log'; payload: any }> = loadPendingQueue();
+
+const PERSIST_INTERVAL_SECONDS = 15;
 
 function currentUserId(): string {
   const state = authManager.getState();
@@ -99,8 +103,17 @@ export async function forceFlushActive(): Promise<void> {
             .insert(pending.payload)
             .select('*')
             .single();
-          if (error || !data) {
-            console.error('[timerEngine] falha ao reenviar insert de sessão', error);
+          if (error) {
+            // 23505 = PK collision (row already exists) — item foi persistido,
+            // não reenviar. Qualquer outro erro volta pra fila.
+            if (error.code === '23505') {
+              console.log('[timerEngine] insert de sessão já existe, descartando do retry', pending.payload.id);
+            } else {
+              console.error('[timerEngine] falha ao reenviar insert de sessão', error);
+              pendingInserts.push(pending);
+            }
+          } else if (!data) {
+            console.error('[timerEngine] reenvio de sessão retornou sem data');
             pendingInserts.push(pending);
           }
         } catch (err) {
@@ -114,8 +127,15 @@ export async function forceFlushActive(): Promise<void> {
             .insert(pending.payload)
             .select('*')
             .single();
-          if (error || !data) {
-            console.error('[timerEngine] falha ao reenviar insert de task_log', error);
+          if (error) {
+            if (error.code === '23505') {
+              console.log('[timerEngine] insert de task_log já existe, descartando do retry', pending.payload.id);
+            } else {
+              console.error('[timerEngine] falha ao reenviar insert de task_log', error);
+              pendingInserts.push(pending);
+            }
+          } else if (!data) {
+            console.error('[timerEngine] reenvio de task_log retornou sem data');
             pendingInserts.push(pending);
           }
         } catch (err) {
@@ -125,6 +145,8 @@ export async function forceFlushActive(): Promise<void> {
       }
     }
   }
+  // Persiste a fila (agora contém apenas itens que falharam novamente)
+  savePendingQueue(pendingInserts);
 }
 
 async function insertSession(partial: {
@@ -180,6 +202,7 @@ async function insertSession(partial: {
     // Se offline, aplica otimisticamente no appStore e enfileira para retry
     console.warn('[timerEngine] falha ao inserir sessão (offline?), enfileirando para retry', err);
     pendingInserts.push({ type: 'session', payload });
+    savePendingQueue(pendingInserts);
     return mapSession(payload);
   }
 }
@@ -216,6 +239,7 @@ async function insertTaskLog(sessionId: string, args: {
     // Se offline, aplica otimisticamente e enfileira para retry
     console.warn('[timerEngine] falha ao inserir task_log (offline?), enfileirando para retry', err);
     pendingInserts.push({ type: 'task_log', payload });
+    savePendingQueue(pendingInserts);
     return mapTaskLog(payload);
   }
 }
@@ -320,6 +344,13 @@ async function tick(): Promise<void> {
   }
 
   appStore.patch({ activeSession: displaySession, activeTaskLogs: logs });
+
+  // Persiste periodicamente (a cada 15s) para limitar perda de dados em crash
+  if (elapsedSeconds % PERSIST_INTERVAL_SECONDS === 0) {
+    void persistSession(displaySession);
+    const activeLog = logs.find((l) => l.id === session.activeTaskLogId);
+    if (activeLog) void persistActiveLog(activeLog);
+  }
 
   if (elapsedSeconds >= session.plannedSeconds) {
     await completeSession();
@@ -579,6 +610,30 @@ export async function hydrateActiveSession(): Promise<void> {
 
   appStore.patch({ activeSession: session, activeTaskLogs: logs });
   if (session.status === 'Ativo') startTicker();
+}
+
+// Inicia um loop periódico (60s) de retry da fila offline.
+// Chamado uma única vez no boot do app após sign-in.
+export function startPendingQueueRetryLoop(): void {
+  if (pendingQueueRetryHandle) return; // já iniciado
+  pendingQueueRetryHandle = setInterval(() => {
+    if (pendingInserts.length > 0) {
+      void forceFlushActive();
+    }
+  }, 60000); // 60 segundos
+}
+
+export function stopPendingQueueRetryLoop(): void {
+  if (pendingQueueRetryHandle) {
+    clearInterval(pendingQueueRetryHandle);
+    pendingQueueRetryHandle = null;
+  }
+}
+
+// Flush antes de quit: persiste sessão ativa + retenta fila pendente.
+// Chamado de main.ts antes de deixar o app fechar.
+export async function flushBeforeQuit(): Promise<void> {
+  await forceFlushActive();
 }
 
 // Carrega as 3 tarefas mais focadas (por frequência histórica) do usuário

@@ -1,6 +1,7 @@
 import { app, autoUpdater } from 'electron';
 import { updateElectronApp } from 'update-electron-app';
 import { appStore } from './store/appStore';
+import * as timerEngine from './store/timerEngine';
 
 // autoUpdater (Squirrel.Windows/Squirrel.Mac por baixo) só funciona em app
 // empacotado — em dev (`npm start`) não há instalador Squirrel gerenciando
@@ -33,7 +34,14 @@ export function initAutoUpdater(): void {
   });
 }
 
-export function restartForUpdate(): void {
+const UPDATE_FLUSH_TIMEOUT_MS = 5000;
+
+export async function restartForUpdate(): Promise<void> {
   if (!SUPPORTED) return;
+  // Faz flush de sessão ativa + fila offline antes de reiniciar
+  await Promise.race([
+    timerEngine.flushBeforeQuit(),
+    new Promise<void>((resolve) => setTimeout(resolve, UPDATE_FLUSH_TIMEOUT_MS)),
+  ]).catch((err) => console.error('[updater] pre-restart flush falhou', err));
   autoUpdater.quitAndInstall();
 }

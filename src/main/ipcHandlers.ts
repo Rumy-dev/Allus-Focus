@@ -101,7 +101,7 @@ export function registerIpcHandlers(): void {
     appStore.patch({ floatingPanelOpacity: clamped });
   });
   handle('app:restartForUpdate', async () => {
-    restartForUpdate();
+    await restartForUpdate();
   });
   handle('prefs:setFloatingPanelSize', async ({ size }) => {
     await authManager.updatePreferences({ floatingPanelSize: size });
