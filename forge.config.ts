@@ -43,7 +43,7 @@ const config: ForgeConfig = {
   ],
   publishers: [
     new PublisherGithub({
-      repository: { owner: 'Rumy-dev', name: 'allus-clock' },
+      repository: { owner: 'Rumy-dev', name: 'Allus-Focus' },
       prerelease: false,
       // Por padrão o publisher cria a release como draft (invisível pra API
       // pública e pro auto-updater) — precisamos explicitamente publicar de

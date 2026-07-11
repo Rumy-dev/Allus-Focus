@@ -10,7 +10,7 @@
 
 ## Como instalar
 
-Baixe a versão mais recente aqui: **[github.com/Rumy-dev/allus-clock/releases/latest](https://github.com/Rumy-dev/allus-clock/releases/latest)**
+Baixe a versão mais recente aqui: **[github.com/Rumy-dev/Allus-Focus/releases/latest](https://github.com/Rumy-dev/Allus-Focus/releases/latest)**
 
 Na página de downloads, procure o arquivo do seu sistema:
 

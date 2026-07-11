@@ -5,7 +5,7 @@
   "description": "Timer de foco/Pomodoro com rastreamento de tempo por cliente/projeto/tarefa, compartilhado pelo time.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Rumy-dev/allus-clock.git"
+    "url": "https://github.com/Rumy-dev/Allus-Focus.git"
   },
   "main": ".vite/build/main.js",
   "private": true,

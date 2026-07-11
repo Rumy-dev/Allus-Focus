@@ -3,7 +3,7 @@
 ## Status atual
 ✅ Configuração de build pronta (MakerDMG, entitlements, Info.plist)
 ✅ v0.1.0 gerada localmente por Pedro (Mac Apple Silicon) e publicada em
-   [GitHub Releases](https://github.com/Rumy-dev/allus-clock/releases)
+   [GitHub Releases](https://github.com/Rumy-dev/Allus-Focus/releases)
 ⚠️ GitHub Actions **não funciona nesta conta** — ver seção abaixo
 
 ## Por que não usamos CI/CD (GitHub Actions)
@@ -29,8 +29,8 @@ prontas pra encaminhar.
 
 Resumo do processo:
 ```bash
-git clone https://github.com/Rumy-dev/allus-clock.git
-cd allus-clock
+git clone https://github.com/Rumy-dev/Allus-Focus.git
+cd Allus-Focus
 npm install
 npm run make
 ```
@@ -44,7 +44,7 @@ Gera o `.dmg` não assinado em:
 2. Gerar o `.dmg` (processo acima)
 3. Criar tag: `git tag vX.Y.Z && git push origin vX.Y.Z`
 4. Criar Release no GitHub e subir o `.dmg` como asset — via UI
-   (`github.com/Rumy-dev/allus-clock/releases/new`) ou via API com um
+   (`github.com/Rumy-dev/Allus-Focus/releases/new`) ou via API com um
    Personal Access Token (escopo `repo`)
 
 ## Distribuição pros usuários finais
@@ -55,7 +55,7 @@ Na primeira abertura, o macOS mostra "desenvolvedor não identificado":
   "Abrir mesmo assim" (só necessário uma vez)
 
 Link de download da versão mais recente sempre fica em:
-**https://github.com/Rumy-dev/allus-clock/releases**
+**https://github.com/Rumy-dev/Allus-Focus/releases**
 
 ## Quando tiver certificado Apple (futuro)
 
