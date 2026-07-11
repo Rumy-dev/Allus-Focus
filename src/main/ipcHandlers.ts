@@ -1,7 +1,6 @@
 import { BrowserWindow, app, ipcMain } from 'electron';
 import { appStore } from './store/appStore';
 import { authManager } from './auth/authManager';
-import { supabase } from './supabase/client';
 import * as timerEngine from './store/timerEngine';
 import * as taskStore from './store/taskStore';
 import * as reportBuilder from './store/reportBuilder';
@@ -119,32 +118,6 @@ export function registerIpcHandlers(): void {
       throw new Error('Acesso negado: apenas admins podem acessar Allus Pulse.');
     }
     return pulseBuilder.queryPulse();
-  });
-
-  handle('admin:inviteMember', async ({ fullName, email }) => {
-    const state = authManager.getState();
-    if (state.status !== 'signedIn' || state.profile.role !== 'admin') {
-      return { ok: false, error: 'Acesso negado: apenas admins podem convidar membros.' };
-    }
-
-    const safeFullName = fullName.trim();
-    const safeEmail = email.trim().toLowerCase();
-    if (!safeFullName || !safeEmail) {
-      return { ok: false, error: 'Preencha nome e e-mail.' };
-    }
-
-    const { data, error } = await supabase.functions.invoke('invite-member', {
-      body: { fullName: safeFullName, email: safeEmail },
-    });
-
-    if (error) {
-      return { ok: false, error: error.message };
-    }
-    if (!data?.ok) {
-      return { ok: false, error: data?.error ?? 'Não foi possível convidar o membro.' };
-    }
-
-    return { ok: true };
   });
 
   handle('prefs:setSound', async ({ enabled }) => {

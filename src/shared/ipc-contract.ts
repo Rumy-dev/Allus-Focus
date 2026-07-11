@@ -105,7 +105,6 @@ export interface IpcInvokeMap {
   }) => { date: string; totalSeconds: number }[];
 
   'pulse:query': () => import('./types').PulseResult;
-  'admin:inviteMember': (args: { fullName: string; email: string }) => { ok: true } | { ok: false; error: string };
 
   'prefs:setSound': (args: { enabled: boolean }) => void;
   'prefs:setSoundOption': (args: { key: 'soundSplash' | 'soundFocusStart' | 'soundFocusEnd' | 'soundBreakEnd' | 'soundIdlePause'; enabled: boolean }) => void;
