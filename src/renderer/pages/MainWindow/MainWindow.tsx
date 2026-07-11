@@ -15,6 +15,7 @@ import { toast } from '../../toast';
 import { useDataRefreshKey } from '../../useDataRefreshKey';
 import { Z } from '../../styles/zIndex';
 import { POMO_MODES, displayPath, formatDuration } from '../../../shared/types';
+import { getAudioContext, playCue } from '../../components/soundUtils';
 import type { PomoMode, PomoSession, SessionDateFilter } from '../../../shared/types';
 
 const MODE_RING_COLORS: Record<PomoMode, { colorDeep: string; colorMid: string; colorSoft: string }> = {
@@ -210,6 +211,16 @@ export function MainWindow() {
     toast.success('Nome atualizado');
   }
 
+  async function handleTestSound(cue: 'splash' | 'focusStart' | 'focusEnd' | 'breakEnd' | 'idlePause') {
+    const context = await getAudioContext(null);
+    if (!context) {
+      toast.error('Não consegui abrir o áudio deste sistema.');
+      return;
+    }
+
+    await playCue(context, cue);
+  }
+
   async function handleDeleteSession(sessionId: string) {
     if (!confirmDialog('Excluir este bloco do histórico? Essa ação não pode ser desfeita.')) return;
     await invokeAction('session:delete', { sessionId });
@@ -362,17 +373,65 @@ export function MainWindow() {
                 {/* Bloco: Preferências — agrupa toggles gerais, painel flutuante e notificações, cada subseção recolhível pra reduzir altura padrão */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
                   <div style={sectionHeadingStyle}>⚙️ Preferências</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <Toggle
-                      checked={snapshot.soundEnabled}
-                      onChange={(checked) => invokeAction('prefs:setSound', { enabled: checked })}
-                      label="Som ao concluir bloco"
-                    />
-                    <Toggle
-                      checked={snapshot.floatingMinimizable}
-                      onChange={(checked) => invokeAction('prefs:setFloatingMinimizable', { enabled: checked })}
-                      label="Painel flutuante minimiza com a janela principal"
-                    />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <Toggle
+                    checked={snapshot.soundEnabled}
+                    onChange={(checked) => invokeAction('prefs:setSound', { enabled: checked })}
+                    label="Pacote sonoro"
+                  />
+                  {snapshot.soundEnabled && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 4 }}>
+                      <Toggle
+                        checked={snapshot.soundSplash}
+                        onChange={(checked) => invokeAction('prefs:setSoundOption', { key: 'soundSplash', enabled: checked })}
+                        label="Splash"
+                      />
+                      <Toggle
+                        checked={snapshot.soundFocusStart}
+                        onChange={(checked) => invokeAction('prefs:setSoundOption', { key: 'soundFocusStart', enabled: checked })}
+                        label="Início de foco"
+                      />
+                      <Toggle
+                        checked={snapshot.soundFocusEnd}
+                        onChange={(checked) => invokeAction('prefs:setSoundOption', { key: 'soundFocusEnd', enabled: checked })}
+                        label="Fim de foco"
+                      />
+                      <Toggle
+                        checked={snapshot.soundBreakEnd}
+                        onChange={(checked) => invokeAction('prefs:setSoundOption', { key: 'soundBreakEnd', enabled: checked })}
+                        label="Fim de pausa"
+                      />
+                      <Toggle
+                        checked={snapshot.soundIdlePause}
+                        onChange={(checked) => invokeAction('prefs:setSoundOption', { key: 'soundIdlePause', enabled: checked })}
+                        label="Pausa por inatividade"
+                      />
+                    </div>
+                  )}
+                  {snapshot.soundEnabled && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      <button type="button" style={pillButtonStyle} onClick={() => handleTestSound('splash')}>
+                        Splash
+                      </button>
+                      <button type="button" style={pillButtonStyle} onClick={() => handleTestSound('focusStart')}>
+                        Início
+                      </button>
+                      <button type="button" style={pillButtonStyle} onClick={() => handleTestSound('focusEnd')}>
+                        Fim foco
+                      </button>
+                      <button type="button" style={pillButtonStyle} onClick={() => handleTestSound('breakEnd')}>
+                        Fim pausa
+                      </button>
+                      <button type="button" style={pillButtonStyle} onClick={() => handleTestSound('idlePause')}>
+                        Inatividade
+                      </button>
+                    </div>
+                  )}
+                  <Toggle
+                    checked={snapshot.floatingMinimizable}
+                    onChange={(checked) => invokeAction('prefs:setFloatingMinimizable', { enabled: checked })}
+                    label="Painel flutuante minimiza com a janela principal"
+                  />
                     <Toggle
                       checked={snapshot.autoLaunchEnabled}
                       onChange={(checked) => invokeAction('prefs:setAutoLaunch', { enabled: checked })}
@@ -905,31 +964,6 @@ export function MainWindow() {
         </section>
       </div>
 
-      {/* F) Controles inferiores */}
-      <div
-        className="allus-glass allus-no-drag"
-        style={{ margin: 16, marginTop: 0, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}
-      >
-        <button style={primaryButtonStyle} onClick={() => invokeAction('timer:playPause', undefined)} title="Espaço">
-          {session?.status === 'Ativo' ? '⏸' : '▶'}
-        </button>
-        <button style={pillButtonStyle} onClick={() => invokeAction('timer:stop', undefined)}>
-          ⏹
-        </button>
-        <div style={{ flex: 1 }} />
-        <span
-          style={{
-            fontSize: 11,
-            color: 'var(--allus-text-muted)',
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid var(--allus-glass-border)',
-            borderRadius: 999,
-            padding: '4px 10px',
-          }}
-        >
-          ⏱ {POMO_MODES[snapshot.selectedMode].title} · {Math.round(POMO_MODES[snapshot.selectedMode].focusSeconds / 60)} min
-        </span>
-      </div>
       <ToastHost />
     </div>
   );
@@ -1024,16 +1058,6 @@ const iconGhostButtonStyle: React.CSSProperties = {
   background: 'transparent',
   color: 'var(--allus-text-muted)',
   fontSize: 12,
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  width: 40,
-  height: 40,
-  borderRadius: '50%',
-  border: 'none',
-  backgroundImage: 'var(--allus-gradient)',
-  color: '#000001',
-  fontSize: 16,
 };
 
 const dotStyle: React.CSSProperties = {

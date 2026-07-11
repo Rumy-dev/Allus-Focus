@@ -4,6 +4,7 @@ import type { AppSnapshot } from '../../shared/ipc-contract';
 import { appStore } from '../store/appStore';
 import { authManager } from '../auth/authManager';
 import * as timerEngine from '../store/timerEngine';
+import type { SoundCue } from '../../renderer/components/soundUtils';
 
 // '#000001' = fallback opaco pro frame transparente que o Windows/Chromium
 // pode compositar antes do primeiro paint do React chegar — sem isso, em
@@ -65,6 +66,7 @@ function fadeFloatingWindow(win: BrowserWindow, from: number, to: number, onDone
 // o drawer (além de causar um vaivém de resizes que aparentava tremor).
 let isProgrammaticFloatingResize = false;
 let programmaticResizeResetTimeout: NodeJS.Timeout | null = null;
+let secondaryPreloadScheduled = false;
 export function markProgrammaticFloatingResize(): void {
   isProgrammaticFloatingResize = true;
   if (programmaticResizeResetTimeout) clearTimeout(programmaticResizeResetTimeout);
@@ -200,10 +202,20 @@ function hideInsteadOfClose(win: BrowserWindow): void {
   });
 }
 
+function revealWindow(win: BrowserWindow): void {
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
+function revealWhenReady(win: BrowserWindow, shouldReveal = true): void {
+  if (!shouldReveal) return;
+  win.once('ready-to-show', () => revealWindow(win));
+}
+
 export function showLogin(): void {
   if (windows.login && !windows.login.isDestroyed()) {
-    windows.login.show();
-    windows.login.focus();
+    revealWindow(windows.login);
     return;
   }
   const win = new BrowserWindow({
@@ -230,8 +242,10 @@ export function showLogin(): void {
     // o backgroundColor opaco (mesmo motivo do painel flutuante, ver
     // showFloatingPanel). Efeito vidro fica só no CSS (.allus-glass,
     // backdrop-filter).
+    show: false,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
+  revealWhenReady(win);
   loadPage(win, 'login');
   win.on('closed', () => {
     windows.login = null;
@@ -308,8 +322,7 @@ export function closeSplash(): void {
 
 export function showMainWindow(onShown?: () => void, showImmediately = true): void {
   if (windows.main && !windows.main.isDestroyed()) {
-    if (showImmediately) windows.main.show();
-    windows.main.focus();
+    if (showImmediately) revealWindow(windows.main);
     onShown?.();
     return;
   }
@@ -334,7 +347,7 @@ export function showMainWindow(onShown?: () => void, showImmediately = true): vo
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
   win.once('ready-to-show', () => {
-    if (showImmediately) win.show();
+    if (showImmediately) revealWindow(win);
     onShown?.();
   });
   loadPage(win, 'main');
@@ -348,6 +361,7 @@ export function showMainWindow(onShown?: () => void, showImmediately = true): vo
 export function showFloatingPanel(): void {
   if (windows.floating && !windows.floating.isDestroyed()) {
     const win = windows.floating;
+    if (win.isVisible()) return;
     win.setOpacity(0);
     win.show();
     fadeFloatingWindow(win, 0, 1);
@@ -496,6 +510,7 @@ export function hideFloatingPanel(): void {
 export function unhideFloatingPanel(): void {
   const win = windows.floating;
   if (!win || win.isDestroyed()) return;
+  if (win.isVisible()) return;
   win.setOpacity(0);
   win.show();
   fadeFloatingWindow(win, 0, 1);
@@ -550,10 +565,9 @@ export function resetFloatingPanelToNormal(): void {
   });
 }
 
-export function showTaskCenter(): void {
+export function showTaskCenter(shouldReveal = true): void {
   if (windows.taskCenter && !windows.taskCenter.isDestroyed()) {
-    windows.taskCenter.show();
-    windows.taskCenter.focus();
+    if (shouldReveal) revealWindow(windows.taskCenter);
     return;
   }
   const win = new BrowserWindow({
@@ -573,8 +587,10 @@ export function showTaskCenter(): void {
     // o backgroundColor opaco (mesmo motivo do painel flutuante, ver
     // showFloatingPanel). Efeito vidro fica só no CSS (.allus-glass,
     // backdrop-filter).
+    show: false,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
+  revealWhenReady(win, shouldReveal);
   loadPage(win, 'taskCenter');
   hideInsteadOfClose(win);
   win.on('closed', () => {
@@ -583,10 +599,9 @@ export function showTaskCenter(): void {
   windows.taskCenter = win;
 }
 
-export function showTimeCenter(): void {
+export function showTimeCenter(shouldReveal = true): void {
   if (windows.timeCenter && !windows.timeCenter.isDestroyed()) {
-    windows.timeCenter.show();
-    windows.timeCenter.focus();
+    if (shouldReveal) revealWindow(windows.timeCenter);
     return;
   }
   const win = new BrowserWindow({
@@ -606,8 +621,10 @@ export function showTimeCenter(): void {
     // o backgroundColor opaco (mesmo motivo do painel flutuante, ver
     // showFloatingPanel). Efeito vidro fica só no CSS (.allus-glass,
     // backdrop-filter).
+    show: false,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
+  revealWhenReady(win, shouldReveal);
   loadPage(win, 'timeCenter');
   hideInsteadOfClose(win);
   win.on('closed', () => {
@@ -616,10 +633,9 @@ export function showTimeCenter(): void {
   windows.timeCenter = win;
 }
 
-export function showDashboard(): void {
+export function showDashboard(shouldReveal = true): void {
   if (windows.dashboard && !windows.dashboard.isDestroyed()) {
-    windows.dashboard.show();
-    windows.dashboard.focus();
+    if (shouldReveal) revealWindow(windows.dashboard);
     return;
   }
   const win = new BrowserWindow({
@@ -639,8 +655,10 @@ export function showDashboard(): void {
     // o backgroundColor opaco (mesmo motivo do painel flutuante, ver
     // showFloatingPanel). Efeito vidro fica só no CSS (.allus-glass,
     // backdrop-filter).
+    show: false,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
+  revealWhenReady(win, shouldReveal);
   loadPage(win, 'dashboard');
   hideInsteadOfClose(win);
   win.on('closed', () => {
@@ -649,10 +667,9 @@ export function showDashboard(): void {
   windows.dashboard = win;
 }
 
-export function showPulse(): void {
+export function showPulse(shouldReveal = true): void {
   if (windows.pulse && !windows.pulse.isDestroyed()) {
-    windows.pulse.show();
-    windows.pulse.focus();
+    if (shouldReveal) revealWindow(windows.pulse);
     return;
   }
   const win = new BrowserWindow({
@@ -672,8 +689,10 @@ export function showPulse(): void {
     // o backgroundColor opaco (mesmo motivo do painel flutuante, ver
     // showFloatingPanel). Efeito vidro fica só no CSS (.allus-glass,
     // backdrop-filter).
+    show: false,
     webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
   });
+  revealWhenReady(win, shouldReveal);
   loadPage(win, 'pulse');
   hideInsteadOfClose(win);
   win.on('closed', () => {
@@ -682,7 +701,22 @@ export function showPulse(): void {
   windows.pulse = win;
 }
 
+export function preloadSecondaryWindows(): void {
+  if (secondaryPreloadScheduled) return;
+  const authState = authManager.getState();
+  if (authState.status !== 'signedIn') return;
+  secondaryPreloadScheduled = true;
+
+  setTimeout(() => showTaskCenter(false), 900);
+  setTimeout(() => showTimeCenter(false), 1700);
+  setTimeout(() => showDashboard(false), 2500);
+  if (authState.profile.role === 'admin') {
+    setTimeout(() => showPulse(false), 3300);
+  }
+}
+
 export function closeAllAppWindows(): void {
+  secondaryPreloadScheduled = false;
   for (const key of ['main', 'taskCenter', 'timeCenter', 'dashboard', 'pulse', 'floating'] as const) {
     windows[key]?.close();
     windows[key] = null;
@@ -693,6 +727,14 @@ export function broadcast(snapshot: AppSnapshot): void {
   for (const win of Object.values(windows)) {
     if (win && !win.isDestroyed()) {
       win.webContents.send('state:update', snapshot);
+    }
+  }
+}
+
+export function playSoundCue(cue: SoundCue): void {
+  for (const win of Object.values(windows)) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('sound:play', cue);
     }
   }
 }

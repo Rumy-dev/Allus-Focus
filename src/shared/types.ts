@@ -66,6 +66,11 @@ export interface DateRangeFilter {
 export interface UserPreferences {
   selectedMode: PomoMode;
   soundEnabled: boolean;
+  soundSplash: boolean;
+  soundFocusStart: boolean;
+  soundFocusEnd: boolean;
+  soundBreakEnd: boolean;
+  soundIdlePause: boolean;
   floatingMinimizable: boolean;
   floatingPanelOpacity: number; // 0-100, quanto mais alto mais opaco
   floatingPanelSize: { width: number; height: number } | null; // null = auto-fit (modo normal)
@@ -77,11 +82,17 @@ export interface UserPreferences {
   notifyFocusStart: boolean;
   notifyFocusEnd: boolean;
   notifyBreakEnd: boolean;
+  idleThresholdMinutes: number; // 0 = desativado
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   selectedMode: DEFAULT_MODE,
   soundEnabled: true,
+  soundSplash: true,
+  soundFocusStart: true,
+  soundFocusEnd: true,
+  soundBreakEnd: true,
+  soundIdlePause: true,
   floatingMinimizable: false,
   floatingPanelOpacity: 90,
   floatingPanelSize: null,
@@ -93,6 +104,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   notifyFocusStart: true,
   notifyFocusEnd: true,
   notifyBreakEnd: true,
+  idleThresholdMinutes: 10,
 };
 
 export interface Profile {

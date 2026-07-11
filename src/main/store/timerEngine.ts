@@ -2,6 +2,7 @@ import { supabase } from '../supabase/client';
 import { appStore } from './appStore';
 import { authManager } from '../auth/authManager';
 import { notify } from '../notifications';
+import * as windowManager from '../windows/windowManager';
 import * as taskStore from './taskStore';
 import { AVULSO_PROJECT_ID } from './taskStore';
 import { POMO_MODES, displayPath } from '../../shared/types';
@@ -279,6 +280,7 @@ export async function startFocus(taskTitle: string, mode?: PomoMode): Promise<vo
   await authManager.updatePreferences({ selectedMode: useMode });
   appStore.patch({ selectedMode: useMode, activeSession: session, activeTaskLogs: [] });
   startTicker();
+  windowManager.playSoundCue('focusStart');
   if (notifyEnabled('notifyFocusStart')) {
     notify('Bloco iniciado', `${POMO_MODES[useMode].title}: timer mestre em andamento.`);
   }
@@ -375,6 +377,7 @@ export async function completeSession(): Promise<void> {
   await persistSession(endedSession);
 
   if (session.cycleKind === 'Foco') {
+    windowManager.playSoundCue('focusEnd');
     if (notifyEnabled('notifyFocusEnd')) {
       notify('Foco concluido', `Hora da pausa de ${Math.round(POMO_MODES[session.mode].breakSeconds / 60)}m.`);
     }
@@ -388,6 +391,7 @@ export async function completeSession(): Promise<void> {
     appStore.patch({ activeSession: breakSession, activeTaskLogs: [] });
     startTicker();
   } else {
+    windowManager.playSoundCue('breakEnd');
     if (notifyEnabled('notifyBreakEnd')) {
       notify('Pausa concluída', 'Novo bloco de foco aguardando. Pressione play para iniciar.');
     }

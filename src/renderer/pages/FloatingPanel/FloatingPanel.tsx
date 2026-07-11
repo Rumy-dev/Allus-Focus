@@ -4,6 +4,7 @@ import { displayPath, formatDuration } from '../../../shared/types';
 import { useKeyboardShortcuts } from '../../useKeyboardShortcuts';
 import { invokeAction } from '../../invoke';
 import { ToastHost } from '../../components/ToastHost';
+import { TaskSuggestions } from '../../components/TaskSuggestions';
 import { TaskModeSelector } from '../../components/TaskModeSelector';
 import { ProjectPicker } from '../../components/ProjectPicker';
 
@@ -21,6 +22,7 @@ export function FloatingPanel() {
   const contentRef = useRef<HTMLDivElement>(null);
   const modalCardRef = useRef<HTMLDivElement>(null);
   const projectPickerRef = useRef<HTMLDivElement>(null);
+  const quickAddWrapRef = useRef<HTMLDivElement>(null);
   const lastSizeRef = useRef<{ width: number; height: number } | null>(null);
 
   const panelOpacity = (snapshot?.floatingPanelOpacity ?? 90) / 100;
@@ -386,26 +388,36 @@ export function FloatingPanel() {
           {/* Campo "Nova tarefa" — só quando não há nenhuma tarefa recente ainda */}
           {showAdd && (
             <form className="allus-no-drag" onSubmit={submitAdd} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <input
-                autoFocus
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Nome da tarefa..."
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 5,
-                  padding: '5px 7px',
-                  color: 'var(--allus-text-primary)',
-                  fontSize: 11,
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') submitAdd(e as any);
-                  if (e.key === 'Escape') setShowAdd(false);
-                }}
-              />
+              <div ref={quickAddWrapRef} style={{ position: 'relative' }}>
+                <input
+                  autoFocus
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Nome da tarefa..."
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 5,
+                    padding: '5px 7px',
+                    color: 'var(--allus-text-primary)',
+                    fontSize: 11,
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') submitAdd(e as any);
+                    if (e.key === 'Escape') setShowAdd(false);
+                  }}
+                />
+                <TaskSuggestions
+                  query={text}
+                  tasks={snapshot?.tasks ?? []}
+                  projects={snapshot?.projects ?? []}
+                  clients={snapshot?.clients ?? []}
+                  onPick={() => setText('')}
+                  anchorRect={quickAddWrapRef.current?.getBoundingClientRect() ?? null}
+                />
+              </div>
             </form>
           )}
         </>
@@ -680,27 +692,37 @@ export function FloatingPanel() {
       {showAdd && (
         <form className="allus-no-drag" onSubmit={submitAdd} style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', fontWeight: 500 }}>Adicionar tarefa</div>
-          <input
-            autoFocus
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Nome da tarefa..."
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 6,
-              padding: '8px 10px',
-              color: 'var(--allus-text-primary)',
-              fontSize: 12,
-              transition: 'all 0.2s ease',
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitAdd(e as any);
-              if (e.key === 'Escape') setShowAdd(false);
-            }}
-          />
+          <div ref={quickAddWrapRef} style={{ position: 'relative' }}>
+            <input
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Nome da tarefa..."
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 6,
+                padding: '8px 10px',
+                color: 'var(--allus-text-primary)',
+                fontSize: 12,
+                transition: 'all 0.2s ease',
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submitAdd(e as any);
+                if (e.key === 'Escape') setShowAdd(false);
+              }}
+            />
+            <TaskSuggestions
+              query={text}
+              tasks={snapshot?.tasks ?? []}
+              projects={snapshot?.projects ?? []}
+              clients={snapshot?.clients ?? []}
+              onPick={() => setText('')}
+              anchorRect={quickAddWrapRef.current?.getBoundingClientRect() ?? null}
+            />
+          </div>
           <button
             type="button"
             onClick={() => setShowProjectPicker(true)}

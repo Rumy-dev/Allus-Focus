@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getAudioContext, isCueEnabled, playCue, unlockAudioContext } from '../../components/soundUtils';
 import './Splash.css';
 
 // Duração total da sequência (ver Splash.css para o roteiro de cada fase).
@@ -9,6 +10,7 @@ export const SPLASH_DURATION_MS = 8900;
 
 export function Splash() {
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -17,6 +19,42 @@ export function Splash() {
     query.addEventListener('change', listener);
     return () => query.removeEventListener('change', listener);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.allus
+      .invoke('state:get', undefined)
+      .then((state) => {
+        if (!cancelled) setSoundEnabled(state.soundEnabled && state.soundSplash);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion || !soundEnabled) return;
+
+    let cancelled = false;
+    void (async () => {
+      const unlock = () => {
+        void unlockAudioContext(null).catch(() => undefined);
+      };
+      window.addEventListener('pointerdown', unlock, { once: true });
+      window.addEventListener('keydown', unlock, { once: true });
+
+      const state = await window.allus.invoke('state:get', undefined);
+      if (cancelled || !isCueEnabled(state, 'splash')) return;
+      const context = await getAudioContext(null);
+      if (!context || cancelled) return;
+      await playCue(context, 'splash');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reducedMotion, soundEnabled]);
 
   return (
     <div className={`splash ${reducedMotion ? 'splash--reduced' : ''}`}>

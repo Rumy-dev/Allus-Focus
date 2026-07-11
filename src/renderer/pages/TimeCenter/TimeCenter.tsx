@@ -236,13 +236,13 @@ export function TimeCenter() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {people.length > 1 && (
             <select
+              className="allus-filter-select"
               value={personFilter}
               onChange={(e) => {
                 setPersonFilter(e.target.value);
                 setClientFilter('');
                 setProjectFilter('');
               }}
-              style={filterSelectStyle}
             >
               <option value="">Todas as pessoas</option>
               {people.map((p) => (
@@ -251,12 +251,12 @@ export function TimeCenter() {
             </select>
           )}
           <select
+            className="allus-filter-select"
             value={clientFilter}
             onChange={(e) => {
               setClientFilter(e.target.value);
               setProjectFilter('');
             }}
-            style={filterSelectStyle}
             disabled={clientOptions.length === 0}
           >
             <option value="">Todos os clientes</option>
@@ -265,9 +265,9 @@ export function TimeCenter() {
             ))}
           </select>
           <select
+            className="allus-filter-select"
             value={projectFilter}
             onChange={(e) => setProjectFilter(e.target.value)}
-            style={filterSelectStyle}
             disabled={projectOptions.length === 0}
           >
             <option value="">Todos os projetos</option>
@@ -461,13 +461,4 @@ const pillButtonStyle: React.CSSProperties = {
   color: 'var(--allus-text-primary)',
   fontSize: 12,
   whiteSpace: 'nowrap',
-};
-
-const filterSelectStyle: React.CSSProperties = {
-  padding: '6px 10px',
-  borderRadius: 8,
-  border: '1px solid var(--allus-glass-border)',
-  background: 'rgba(255,255,255,0.04)',
-  color: 'var(--allus-text-primary)',
-  fontSize: 12,
 };

@@ -13,8 +13,8 @@ const allusApi = {
     ipcRenderer.on('state:update', listener);
     return () => ipcRenderer.removeListener('state:update', listener);
   },
-  on(channel: string, callback: () => void): () => void {
-    const listener = () => callback();
+  on(channel: string, callback: (payload: unknown) => void): () => void {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload);
     ipcRenderer.on(channel, listener);
     return () => ipcRenderer.removeListener(channel, listener);
   },

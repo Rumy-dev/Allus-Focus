@@ -48,7 +48,7 @@ body {
 }
 
 .splash__wordmark {
-  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Aptos', 'Segoe UI Variable Text', 'Segoe UI', 'SF Pro Text', system-ui, sans-serif;
   font-size: 26px;
   font-weight: 600;
   letter-spacing: 0.02em;

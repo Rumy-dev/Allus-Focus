@@ -35,10 +35,26 @@ export function registerIpcHandlers(): void {
     authManager.confirmPasswordReset(email, code, newPassword),
   );
 
-  handle('timer:playPause', async () => timerEngine.playPause());
-  handle('timer:pause', async () => timerEngine.pause());
-  handle('timer:resume', async () => timerEngine.resume());
-  handle('timer:stop', async () => timerEngine.stop());
+  handle('timer:playPause', async () => {
+    const before = appStore.getSnapshot().activeSession?.status;
+    await timerEngine.playPause();
+    const after = appStore.getSnapshot().activeSession?.status;
+    if (before === 'Ativo' && after === 'Pausado') windowManager.playSoundCue('buttonPause');
+    else if (before !== 'Ativo' && after === 'Ativo') windowManager.playSoundCue('buttonPlay');
+    else if (after === 'Ativo') windowManager.playSoundCue('buttonPlay');
+  });
+  handle('timer:pause', async () => {
+    await timerEngine.pause();
+    windowManager.playSoundCue('buttonPause');
+  });
+  handle('timer:resume', async () => {
+    await timerEngine.resume();
+    windowManager.playSoundCue('buttonPlay');
+  });
+  handle('timer:stop', async () => {
+    await timerEngine.stop();
+    windowManager.playSoundCue('buttonStop');
+  });
   handle('timer:skipToBreak', async () => timerEngine.skipToBreak());
   handle('timer:skipToFocus', async () => timerEngine.skipToFocus());
   handle('timer:restart', async ({ sessionId }) => timerEngine.restart(sessionId));
@@ -107,6 +123,10 @@ export function registerIpcHandlers(): void {
   handle('prefs:setSound', async ({ enabled }) => {
     await authManager.updatePreferences({ soundEnabled: enabled });
     appStore.patch({ soundEnabled: enabled });
+  });
+  handle('prefs:setSoundOption', async ({ key, enabled }) => {
+    await authManager.updatePreferences({ [key]: enabled } as Partial<import('../shared/types').UserPreferences>);
+    appStore.patch({ [key]: enabled } as Partial<import('../shared/types').UserPreferences>);
   });
   handle('prefs:setFloatingMinimizable', async ({ enabled }) => {
     await authManager.updatePreferences({ floatingMinimizable: enabled });

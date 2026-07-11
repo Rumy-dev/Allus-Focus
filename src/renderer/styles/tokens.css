@@ -22,8 +22,8 @@
   --allus-status-pausado: #ffd166;
   --allus-status-concluido: #7ef29b;
   --allus-status-interrompido: #ff6b6b;
-  --allus-font: 'Segoe UI', 'SF Pro Rounded', system-ui, sans-serif;
-  --allus-font-mono: 'Cascadia Mono', 'SF Mono', ui-monospace, monospace;
+  --allus-font: 'Aptos', 'Segoe UI Variable Text', 'Segoe UI', 'SF Pro Text', system-ui, sans-serif;
+  --allus-font-mono: 'Cascadia Code', 'Cascadia Mono', 'SF Mono', ui-monospace, monospace;
   --allus-space-1: 4px;
   --allus-space-2: 8px;
   --allus-space-3: 12px;

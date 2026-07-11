@@ -30,6 +30,11 @@ export interface AppSnapshot {
   projects: Project[];
   tasks: Task[];
   soundEnabled: boolean;
+  soundSplash: boolean;
+  soundFocusStart: boolean;
+  soundFocusEnd: boolean;
+  soundBreakEnd: boolean;
+  soundIdlePause: boolean;
   floatingMinimizable: boolean;
   floatingPanelOpacity: number;
   floatingPanelSize: { width: number; height: number } | null;
@@ -102,6 +107,7 @@ export interface IpcInvokeMap {
   'pulse:query': () => import('./types').PulseResult;
 
   'prefs:setSound': (args: { enabled: boolean }) => void;
+  'prefs:setSoundOption': (args: { key: 'soundSplash' | 'soundFocusStart' | 'soundFocusEnd' | 'soundBreakEnd' | 'soundIdlePause'; enabled: boolean }) => void;
   'prefs:setFloatingMinimizable': (args: { enabled: boolean }) => void;
   'prefs:setFloatingPanelOpacity': (args: { opacity: number }) => void;
   'app:restartForUpdate': () => void;

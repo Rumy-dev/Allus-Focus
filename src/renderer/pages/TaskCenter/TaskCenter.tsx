@@ -363,27 +363,34 @@ export function TaskCenter() {
           )}
         </section>
 
-        <div style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>
-          Clique com o botão direito (ou no "⋮") num cliente, projeto ou tarefa pra mais opções — copiar, mover,
-          apagar e outras.
-        </div>
+        <section style={listHeaderStyle}>
+          <div>
+            <div style={sectionKickerStyle}>{showArchived ? 'Arquivo' : 'Clientes'}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, marginTop: 2 }}>
+              {showArchived ? 'Itens arquivados' : 'Mapa de trabalho'}
+            </div>
+          </div>
+          <div style={listHintStyle}>Use o botão de opções para copiar, mover, arquivar e restaurar.</div>
+        </section>
 
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--allus-text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          Clientes
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={treeListStyle}>
           {grouped.map(({ client, projects }) => (
-            <div key={client.id}>
+            <div key={client.id} style={clientGroupStyle}>
               <div
-                style={{ ...rowStyle, opacity: client.archivedAt ? 0.55 : 1 }}
+                style={{ ...clientRowStyle, opacity: client.archivedAt ? 0.55 : 1 }}
                 onClick={() => toggle(expandedClients, setExpandedClients, client.id)}
               >
-                <span>{expandedClients.has(client.id) ? '▾' : '▸'}</span>
-                <strong style={{ color: 'var(--allus-yellow-deep)' }}>{client.name}</strong>
-                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--allus-text-muted)' }}>
-                  {projects.length} projeto(s)
-                </span>
+                <span style={chevronStyle}>{expandedClients.has(client.id) ? '▾' : '▸'}</span>
+                <span style={clientAvatarStyle}>{getInitials(client.name)}</span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ color: 'var(--allus-yellow)', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {client.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginTop: 2 }}>
+                    {projects.length} projeto(s) · {projects.reduce((sum, project) => sum + topLevelTasks(project.id).length, 0)} tarefa(s)
+                  </div>
+                </div>
+                <span style={countPillStyle}>{projects.length}</span>
                 <button
                   className="allus-no-drag"
                   style={iconGhostButtonStyle}
@@ -396,28 +403,33 @@ export function TaskCenter() {
 
               {expandedClients.has(client.id) &&
                 projects.map((project) => (
-                  <div key={project.id} style={{ marginLeft: 18 }}>
+                  <div key={project.id} style={projectBlockStyle}>
                     <div
-                      style={{ ...rowStyle, opacity: project.archivedAt ? 0.55 : 1 }}
+                      style={{ ...projectRowStyle, opacity: project.archivedAt ? 0.55 : 1 }}
                       onClick={() => toggle(expandedProjects, setExpandedProjects, project.id)}
                       onContextMenu={(e) => onProjectContextMenu(e, project)}
                     >
-                      <span>{expandedProjects.has(project.id) ? '▾' : '▸'}</span>
-                      <span style={{ color: 'var(--allus-yellow)' }}>{project.name}</span>
+                      <span style={chevronStyle}>{expandedProjects.has(project.id) ? '▾' : '▸'}</span>
+                      <span
+                        style={{
+                          color: 'var(--allus-text-primary)',
+                          fontWeight: 700,
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {project.name}
+                      </span>
                       {project.type && (
                         <span
-                          style={{
-                            fontSize: 10,
-                            color: 'var(--allus-text-muted)',
-                            border: '1px solid var(--allus-glass-border)',
-                            borderRadius: 999,
-                            padding: '1px 8px',
-                          }}
+                          style={typeChipStyle}
                         >
                           {project.type}
                         </span>
                       )}
-                      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--allus-text-muted)' }}>
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--allus-text-muted)', whiteSpace: 'nowrap' }}>
                         {topLevelTasks(project.id).length} tarefa(s)
                       </span>
                       <button
@@ -443,7 +455,7 @@ export function TaskCenter() {
 
                     {expandedProjects.has(project.id) &&
                       topLevelTasks(project.id).map((task) => (
-                        <div key={task.id} style={{ marginLeft: 18 }}>
+                        <div key={task.id} style={taskBlockStyle}>
                           <TaskRow
                             task={task}
                             renaming={renaming}
@@ -455,7 +467,7 @@ export function TaskCenter() {
                             onMenuButton={(e) => onTaskMenuButton(e, task)}
                           />
                           {expandedTasks.has(task.id) && (
-                            <div style={{ marginLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={taskChildrenStyle}>
                               {subtasksOf(task.id).map((sub) => (
                                 <TaskRow
                                   key={sub.id}
@@ -550,6 +562,7 @@ function TaskRow({
           {expanded ? '▾' : '▸'}
         </span>
       )}
+      {!onToggleExpand && <span />}
       {isArchived ? (
         <span
           title={`Prioridade: ${task.priority}`}
@@ -615,14 +628,21 @@ function TaskRow({
         </>
       ) : (
         <span
-          style={{ flex: 1, textDecoration: isArchived ? 'line-through' : undefined }}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            textDecoration: isArchived ? 'line-through' : undefined,
+          }}
           onDoubleClick={() => !isArchived && setRenaming({ id: task.id, value: task.title })}
         >
           {task.title}
         </span>
       )}
       {subtaskCount !== undefined && subtaskCount > 0 && (
-        <span style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>{subtaskCount} subtarefa(s)</span>
+        <span style={{ fontSize: 11, color: 'var(--allus-text-muted)', whiteSpace: 'nowrap' }}>{subtaskCount} sub</span>
       )}
       {isArchived ? (
         <button
@@ -666,23 +686,27 @@ function MoveToProjectModal({
   }
   return (
     <div style={overlayStyle} onClick={onClose}>
-      <div className="allus-glass allus-no-drag" style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontSize: 13, marginBottom: 10 }}>Mover "{task.title}" para...</div>
-        <div style={{ maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div className="allus-glass allus-no-drag" style={moveModalStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={modalHeaderStyle}>
+          <div style={sectionKickerStyle}>Mover tarefa</div>
+          <div style={modalTitleStyle}>{task.title}</div>
+        </div>
+        <div style={moveListStyle}>
           {clients.map((client) => (
-            <div key={client.id}>
-              <div style={{ fontSize: 11, color: 'var(--allus-yellow-deep)', padding: '4px 8px' }}>{client.name}</div>
+            <div key={client.id} style={moveClientGroupStyle}>
+              <div style={moveClientLabelStyle}>{client.name}</div>
               {projects
                 .filter((p) => p.clientId === client.id)
                 .map((project) => (
                   <button key={project.id} onClick={() => move(project)} style={moveOptionStyle}>
-                    {project.name}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{project.name}</span>
+                    <span style={{ color: 'var(--allus-yellow)', fontSize: 12 }}>→</span>
                   </button>
                 ))}
             </div>
           ))}
         </div>
-        <button style={{ ...pillButtonStyle, marginTop: 10, width: '100%' }} onClick={onClose}>
+        <button style={modalCancelButtonStyle} onClick={onClose}>
           Cancelar
         </button>
       </div>
@@ -753,6 +777,13 @@ function PropRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const initials = parts.length === 1 ? parts[0].slice(0, 2) : `${parts[0][0]}${parts[parts.length - 1][0]}`;
+  return initials.toUpperCase();
+}
+
 const inputStyle: React.CSSProperties = {
   background: 'rgba(255,255,255,0.06)',
   border: '1px solid var(--allus-glass-border)',
@@ -778,6 +809,140 @@ const iconGhostButtonStyle: React.CSSProperties = {
   background: 'transparent',
   color: 'var(--allus-text-muted)',
   fontSize: 12,
+  flexShrink: 0,
+  minWidth: 0,
+  padding: '3px 5px',
+};
+
+const listHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  gap: 16,
+  padding: '2px 4px',
+};
+
+const sectionKickerStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 800,
+  color: 'var(--allus-text-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+};
+
+const listHintStyle: React.CSSProperties = {
+  maxWidth: 360,
+  fontSize: 11,
+  color: 'var(--allus-text-muted)',
+  textAlign: 'right',
+};
+
+const treeListStyle: React.CSSProperties = {
+  flex: 1,
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+  paddingRight: 4,
+};
+
+const clientGroupStyle: React.CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid rgba(236,220,1,0.10)',
+  background: 'linear-gradient(135deg, rgba(236,220,1,0.045), rgba(255,255,255,0.018))',
+  overflow: 'visible',
+  minWidth: 0,
+};
+
+const clientRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '10px 12px',
+  fontSize: 13,
+  cursor: 'pointer',
+  minWidth: 0,
+};
+
+const projectBlockStyle: React.CSSProperties = {
+  marginLeft: 18,
+  marginRight: 6,
+  borderLeft: '1px solid rgba(236,220,1,0.16)',
+  paddingLeft: 8,
+  paddingBottom: 10,
+  minWidth: 0,
+};
+
+const projectRowStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '14px minmax(0, 1fr) auto auto 26px 26px',
+  alignItems: 'center',
+  gap: 8,
+  padding: '8px 9px',
+  borderRadius: 10,
+  fontSize: 13,
+  cursor: 'pointer',
+  background: 'rgba(0,0,1,0.18)',
+  minWidth: 0,
+};
+
+const taskBlockStyle: React.CSSProperties = {
+  marginLeft: 8,
+  paddingLeft: 6,
+  borderLeft: '1px solid rgba(255,255,255,0.08)',
+  minWidth: 0,
+};
+
+const taskChildrenStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  marginLeft: 8,
+  paddingLeft: 8,
+  paddingBottom: 8,
+  borderLeft: '1px solid rgba(126,242,155,0.18)',
+  minWidth: 0,
+};
+
+const chevronStyle: React.CSSProperties = {
+  width: 14,
+  color: 'var(--allus-yellow)',
+  fontSize: 11,
+  flexShrink: 0,
+};
+
+const clientAvatarStyle: React.CSSProperties = {
+  width: 30,
+  height: 30,
+  borderRadius: 10,
+  display: 'grid',
+  placeItems: 'center',
+  background: 'rgba(236,220,1,0.14)',
+  color: 'var(--allus-yellow)',
+  fontSize: 11,
+  fontWeight: 900,
+  flexShrink: 0,
+};
+
+const countPillStyle: React.CSSProperties = {
+  minWidth: 28,
+  padding: '4px 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(236,220,1,0.18)',
+  color: 'var(--allus-yellow)',
+  fontSize: 11,
+  fontWeight: 800,
+  textAlign: 'center',
+};
+
+const typeChipStyle: React.CSSProperties = {
+  fontSize: 10,
+  color: 'var(--allus-text-muted)',
+  border: '1px solid rgba(236,220,1,0.16)',
+  background: 'rgba(236,220,1,0.06)',
+  borderRadius: 999,
+  padding: '2px 8px',
 };
 
 const statusSelectStyle: React.CSSProperties = {
@@ -788,16 +953,25 @@ const statusSelectStyle: React.CSSProperties = {
   fontSize: 10,
   fontWeight: 600,
   cursor: 'pointer',
+  flexShrink: 0,
+  width: '100%',
+  maxWidth: 112,
 };
 
 const rowStyle: React.CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: '12px 9px minmax(76px, 104px) minmax(0, 1fr) minmax(0, auto) 38px 22px',
   alignItems: 'center',
   gap: 8,
-  padding: '6px 8px',
-  borderRadius: 8,
+  padding: '7px 9px',
+  borderRadius: 10,
   fontSize: 13,
   cursor: 'pointer',
+  background: 'rgba(255,255,255,0.025)',
+  border: '1px solid rgba(255,255,255,0.055)',
+  marginTop: 4,
+  minWidth: 0,
+  overflow: 'hidden',
 };
 
 const overlayStyle: React.CSSProperties = {
@@ -815,14 +989,73 @@ const modalStyle: React.CSSProperties = {
   padding: 16,
 };
 
+const moveModalStyle: React.CSSProperties = {
+  width: 360,
+  maxWidth: '92vw',
+  padding: 16,
+  borderRadius: 18,
+};
+
+const modalHeaderStyle: React.CSSProperties = {
+  paddingBottom: 12,
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  marginBottom: 10,
+};
+
+const modalTitleStyle: React.CSSProperties = {
+  marginTop: 4,
+  fontSize: 15,
+  fontWeight: 800,
+  color: 'var(--allus-text-primary)',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+const moveListStyle: React.CSSProperties = {
+  maxHeight: 330,
+  overflowY: 'auto',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+  paddingRight: 4,
+};
+
+const moveClientGroupStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+};
+
+const moveClientLabelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 800,
+  color: 'var(--allus-yellow)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.07em',
+  padding: '2px 4px',
+};
+
 const moveOptionStyle: React.CSSProperties = {
-  display: 'block',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
   width: '100%',
   textAlign: 'left',
-  padding: '6px 10px',
-  borderRadius: 8,
-  border: 'none',
-  background: 'transparent',
+  padding: '8px 10px',
+  borderRadius: 10,
+  border: '1px solid rgba(236,220,1,0.10)',
+  background: 'rgba(255,255,255,0.035)',
   color: 'var(--allus-text-primary)',
   fontSize: 13,
+  minWidth: 0,
+};
+
+const modalCancelButtonStyle: React.CSSProperties = {
+  ...pillButtonStyle,
+  marginTop: 12,
+  width: '100%',
+  borderRadius: 12,
+  padding: '8px 12px',
 };

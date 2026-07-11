@@ -8,6 +8,7 @@ import { TimeCenter } from './pages/TimeCenter/TimeCenter';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { Pulse } from './pages/Dashboard/Pulse';
 import { Splash } from './pages/Splash/Splash';
+import { SoundBridge } from './components/SoundBridge';
 import './styles/index.css';
 
 const params = new URLSearchParams(window.location.search);
@@ -27,4 +28,9 @@ const pages: Record<string, ComponentType> = {
 const Page = pages[page] ?? MainWindow;
 
 const root = createRoot(document.getElementById('root')!);
-root.render(<Page />);
+root.render(
+  <>
+    <SoundBridge />
+    <Page />
+  </>,
+);

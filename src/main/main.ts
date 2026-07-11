@@ -8,6 +8,8 @@ import * as windowManager from './windows/windowManager';
 import * as tray from './tray';
 import { registerIpcHandlers } from './ipcHandlers';
 import { initAutoUpdater } from './updater';
+import { startIdleMonitor, stopIdleMonitor } from './idleMonitor';
+import { startFocusNudgeMonitor, stopFocusNudgeMonitor } from './focusNudgeMonitor';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -51,8 +53,8 @@ let wasOnline = true;
 // Mantida em sincronia manual com SPLASH_DURATION_MS em
 // src/renderer/pages/Splash/Splash.tsx (não importamos direto do renderer
 // pra não puxar React/CSS pro bundle do processo main).
-const SPLASH_DURATION_MS = 7900;
-const SPLASH_TIMEOUT_MS = 9000;
+const SPLASH_DURATION_MS = 8900;
+const SPLASH_TIMEOUT_MS = 10000;
 let splashClosed = false;
 let splashStartedAt = 0;
 let mainWindowReady = false;
@@ -63,6 +65,7 @@ let splashMinElapsed = false;
 // fechar na hora (cortando a animação antes dela sequer começar), guardamos
 // o pedido de revelação e o disparamos quando a splash ficar pronta.
 let pendingReveal: (() => void) | null = null;
+let secondaryPreloadTimeout: NodeJS.Timeout | null = null;
 
 function scheduleReveal(showTarget: () => void): void {
   splashClosed = true;
@@ -96,11 +99,19 @@ function closeSplashAndReveal(showTarget: () => void): void {
   scheduleReveal(showTarget);
 }
 
-app.whenReady().then(async () => {
-  registerIpcHandlers();
-  appStore.patch({ autoLaunchEnabled: app.getLoginItemSettings().openAtLogin });
-  initAutoUpdater();
+function scheduleSecondaryPreloadDuringSplash(): void {
+  if (secondaryPreloadTimeout) return;
+  // Deixa a splash pintar e animar primeiro. O pre-load começa só no meio da
+  // sequência, aproveitando o tempo restante sem brigar com o primeiro frame.
+  secondaryPreloadTimeout = setTimeout(() => {
+    secondaryPreloadTimeout = null;
+    if (!splashClosed) {
+      windowManager.preloadSecondaryWindows();
+    }
+  }, 3200);
+}
 
+app.whenReady().then(async () => {
   // splashStartedAt só é marcado quando a janela fica de fato visível
   // (ready-to-show) — ver comentário em windowManager.showSplash. Contar a
   // partir da criação da janela subtraía o tempo de carregamento do
@@ -113,6 +124,11 @@ app.whenReady().then(async () => {
       scheduleReveal(reveal);
     }
   });
+
+  registerIpcHandlers();
+  appStore.patch({ autoLaunchEnabled: app.getLoginItemSettings().openAtLogin });
+  initAutoUpdater();
+
   // Rede de segurança: nenhuma splash deve poder ficar presa na tela para
   // sempre se algo no fluxo de auth/IPC falhar silenciosamente (inclusive se
   // a janela nunca chegar a disparar 'ready-to-show'). Contada a partir do
@@ -146,6 +162,11 @@ app.whenReady().then(async () => {
       appStore.patch({
         auth: { status: 'signedIn', profile: state.profile },
         soundEnabled: state.profile.preferences.soundEnabled,
+        soundSplash: state.profile.preferences.soundSplash,
+        soundFocusStart: state.profile.preferences.soundFocusStart,
+        soundFocusEnd: state.profile.preferences.soundFocusEnd,
+        soundBreakEnd: state.profile.preferences.soundBreakEnd,
+        soundIdlePause: state.profile.preferences.soundIdlePause,
         floatingMinimizable: state.profile.preferences.floatingMinimizable,
         floatingPanelOpacity: state.profile.preferences.floatingPanelOpacity,
         floatingPanelSize: state.profile.preferences.floatingPanelSize,
@@ -190,7 +211,10 @@ app.whenReady().then(async () => {
         await timerEngine.forceFlushActive().catch((err) => console.error('[main] flush na assinatura falhou', err));
         // Inicia retry periódico da fila offline (a cada 60s)
         timerEngine.startPendingQueueRetryLoop();
+        startIdleMonitor();
+        startFocusNudgeMonitor();
         taskStore.subscribeRealtime();
+        scheduleSecondaryPreloadDuringSplash();
         if (mainWindowReady && splashMinElapsed) {
           windowManager.showFloatingPanel();
         } else {
@@ -209,6 +233,8 @@ app.whenReady().then(async () => {
       wasSignedIn = false;
       // Para retry loop e faz flush final antes de limpar estado
       timerEngine.stopPendingQueueRetryLoop();
+      stopIdleMonitor();
+      stopFocusNudgeMonitor();
       if (hadSignedInSession) {
         await Promise.race([
           timerEngine.flushBeforeQuit(),

@@ -17,63 +17,111 @@ export function BarChart({ title, items, color, onItemClick }: BarChartProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minHeight: 200 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--allus-text-muted)' }}>{title}</div>
+      {title && <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--allus-text-muted)' }}>{title}</div>}
       {sorted.length === 0 ? (
         <div style={{ fontSize: 12, color: 'var(--allus-text-muted)' }}>Sem dados</div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {sorted.map((item) => {
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {sorted.map((item, index) => {
             const pct = (item.value / maxValue) * 100;
             return (
-              <div
+              <button
+                className="allus-menu-item"
                 key={item.id}
                 onClick={() => onItemClick?.(item)}
                 style={{
-                  display: 'flex',
+                  display: 'grid',
+                  gridTemplateColumns: '24px minmax(0, 1fr) 72px',
                   alignItems: 'center',
-                  gap: 8,
+                  gap: 10,
+                  minHeight: 34,
+                  padding: '6px 0',
+                  border: 'none',
+                  borderBottom: '1px solid rgba(255,255,255,0.07)',
+                  background: 'transparent',
+                  color: 'var(--allus-text-primary)',
                   cursor: onItemClick ? 'pointer' : 'default',
                   opacity: onItemClick ? 0.9 : 1,
+                  textAlign: 'left',
                 }}
                 onMouseEnter={(e) => {
-                  if (onItemClick) (e.currentTarget.style.opacity = '1');
+                  if (!onItemClick) return;
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.background = 'rgba(236,220,1,0.045)';
                 }}
                 onMouseLeave={(e) => {
-                  if (onItemClick) (e.currentTarget.style.opacity = '0.9');
+                  if (!onItemClick) return;
+                  e.currentTarget.style.opacity = '0.9';
+                  e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <div
+                <span
                   style={{
-                    flex: 1,
-                    position: 'relative',
-                    height: 24,
-                    background: 'transparent',
-                    borderRadius: 4,
-                    overflow: 'hidden',
+                    width: 20,
+                    height: 20,
+                    borderRadius: 8,
+                    display: 'grid',
+                    placeItems: 'center',
+                    background: index === 0 ? 'rgba(236,220,1,0.18)' : 'rgba(255,255,255,0.06)',
+                    color: index === 0 ? 'var(--allus-yellow)' : 'var(--allus-text-muted)',
+                    fontSize: 10,
+                    fontWeight: 800,
                   }}
                 >
+                  {index + 1}
+                </span>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 5,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      fontSize: 12,
+                      color: 'var(--allus-text-primary)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {item.label}
+                  </span>
                   <div
                     style={{
-                      position: 'absolute',
-                      height: '100%',
-                      width: `${pct}%`,
-                      background: color,
-                      borderRadius: '0px 4px 4px 0px',
+                      width: '100%',
+                      height: 4,
+                      background: 'rgba(236,220,1,0.10)',
+                      borderRadius: 999,
+                      overflow: 'hidden',
                     }}
-                  />
+                  >
+                    <div
+                      style={{
+                        height: '100%',
+                        width: `${pct}%`,
+                        background: color,
+                        borderRadius: 999,
+                      }}
+                    />
+                  </div>
                 </div>
-                <div
+                <span
                   style={{
-                    minWidth: 120,
                     textAlign: 'right',
-                    fontSize: 12,
-                    color: 'var(--allus-text-primary)',
+                    fontSize: 11,
+                    color: 'var(--allus-yellow)',
+                    fontFamily: 'var(--allus-font-mono)',
+                    fontWeight: 700,
                   }}
                 >
-                  <div>{item.label}</div>
-                  <div style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>{formatTime(item.value)}</div>
-                </div>
-              </div>
+                  {formatTime(item.value)}
+                </span>
+              </button>
             );
           })}
         </div>
