@@ -3,6 +3,8 @@ import type { CSSProperties } from 'react';
 import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { BarChart } from '../../components/BarChart';
 import { TrendChart } from '../../components/TrendChart';
+import { invokeAction } from '../../invoke';
+import { toast } from '../../toast';
 import { useAppState } from '../../useAppState';
 import { Titlebar } from '../../components/Titlebar';
 import { ToastHost } from '../../components/ToastHost';
@@ -18,6 +20,12 @@ export function Pulse() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAllBudgets, setShowAllBudgets] = useState(false);
+  const [showInviteMember, setShowInviteMember] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
   const loadPulse = async () => {
     try {
@@ -37,6 +45,35 @@ export function Pulse() {
     setRefreshing(true);
     await loadPulse();
     setRefreshing(false);
+  };
+
+  const handleInviteMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviteError(null);
+    setInviteSuccess(null);
+
+    const fullName = inviteName.trim();
+    const email = inviteEmail.trim();
+    if (!fullName || !email) {
+      setInviteError('Preencha nome e e-mail.');
+      return;
+    }
+
+    setInviteSaving(true);
+    const result = await invokeAction('admin:inviteMember', { fullName, email });
+    setInviteSaving(false);
+
+    if (!result) return;
+    if ('ok' in result && !result.ok) {
+      setInviteError(result.error);
+      return;
+    }
+
+    setInviteName('');
+    setInviteEmail('');
+    setShowInviteMember(false);
+    setInviteSuccess(`Convite enviado para ${email}.`);
+    toast.success('Membro convidado com sucesso');
   };
 
   useEffect(() => {
@@ -157,6 +194,14 @@ export function Pulse() {
           </div>
           <div style={heroMetaStyle}>
             <div style={heroMetaChipStyle}>Atualizado {now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+            {snapshot.auth.profile?.role === 'admin' && (
+              <button
+                onClick={() => setShowInviteMember(true)}
+                style={inviteButtonStyle}
+              >
+                + Adicionar membro
+              </button>
+            )}
             <button
               onClick={handleManualRefresh}
               disabled={refreshing}
@@ -342,6 +387,42 @@ export function Pulse() {
           </div>
         </section>
       </div>
+      {showInviteMember && snapshot.auth.profile?.role === 'admin' && (
+        <div style={modalBackdropStyle} onClick={() => setShowInviteMember(false)}>
+          <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={panelHeaderStyle}>
+              <div>
+                <div style={panelTitleStyle}>Adicionar membro</div>
+                <div style={panelSubtitleStyle}>O convite será enviado por e-mail e o perfil entra como member.</div>
+              </div>
+              <button type="button" onClick={() => setShowInviteMember(false)} style={ghostButtonStyle}>
+                Fechar
+              </button>
+            </div>
+
+            <form onSubmit={handleInviteMember} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                placeholder="Nome completo"
+                style={inviteInputStyle}
+              />
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="E-mail do membro"
+                style={inviteInputStyle}
+              />
+              {inviteError && <div style={{ color: 'var(--allus-status-interrompido)', fontSize: 12 }}>{inviteError}</div>}
+              {inviteSuccess && <div style={{ color: 'var(--allus-status-concluido)', fontSize: 12 }}>{inviteSuccess}</div>}
+              <button type="submit" disabled={inviteSaving} style={inviteSubmitStyle}>
+                {inviteSaving ? 'Enviando...' : 'Enviar convite'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
       <ToastHost />
     </div>
   );
@@ -481,6 +562,18 @@ const heroMetaChipStyle: CSSProperties = {
   color: 'var(--allus-text-secondary)',
   fontSize: 11,
   fontWeight: 700,
+};
+
+const inviteButtonStyle: CSSProperties = {
+  minHeight: 32,
+  padding: '7px 13px',
+  borderRadius: 12,
+  border: '1px solid rgba(236, 220, 1, 0.32)',
+  background: 'rgba(236, 220, 1, 0.10)',
+  color: 'var(--allus-yellow-soft)',
+  fontSize: 12,
+  fontWeight: 800,
+  whiteSpace: 'nowrap',
 };
 
 const refreshButtonStyle: CSSProperties = {
@@ -705,4 +798,44 @@ const centerStateCardStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.04)',
+};
+
+const modalBackdropStyle: CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.56)',
+  display: 'grid',
+  placeItems: 'center',
+  padding: 18,
+  zIndex: 60,
+};
+
+const modalCardStyle: CSSProperties = {
+  width: 'min(520px, 100%)',
+  padding: 18,
+  borderRadius: 18,
+  border: '1px solid rgba(236, 220, 1, 0.18)',
+  background: 'rgba(12,12,12,0.98)',
+  boxShadow: '0 24px 60px rgba(0,0,0,0.45)',
+};
+
+const inviteInputStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--allus-glass-border)',
+  borderRadius: 10,
+  padding: '10px 12px',
+  color: 'var(--allus-text-primary)',
+  outline: 'none',
+  fontSize: 14,
+};
+
+const inviteSubmitStyle: CSSProperties = {
+  minHeight: 38,
+  padding: '10px 12px',
+  borderRadius: 10,
+  border: 'none',
+  backgroundImage: 'var(--allus-gradient)',
+  color: '#000001',
+  fontWeight: 800,
+  fontSize: 14,
 };
