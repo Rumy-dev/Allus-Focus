@@ -4,6 +4,7 @@ import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { useAppState } from '../../useAppState';
 import { Titlebar } from '../../components/Titlebar';
 import { DateFilterBar } from '../../components/DateFilterBar';
+import { FilterDropdown } from '../../components/FilterDropdown';
 import { ToastHost } from '../../components/ToastHost';
 import { invokeAction } from '../../invoke';
 import { useDataRefreshKey } from '../../useDataRefreshKey';
@@ -235,46 +236,34 @@ export function TimeCenter() {
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {people.length > 1 && (
-            <select
-              className="allus-filter-select"
+            <FilterDropdown
               value={personFilter}
-              onChange={(e) => {
-                setPersonFilter(e.target.value);
+              placeholderLabel="Todas as pessoas"
+              options={people.map((p) => ({ value: p.userId, label: p.fullName }))}
+              onChange={(value) => {
+                setPersonFilter(value);
                 setClientFilter('');
                 setProjectFilter('');
               }}
-            >
-              <option value="">Todas as pessoas</option>
-              {people.map((p) => (
-                <option key={p.userId} value={p.userId}>{p.fullName}</option>
-              ))}
-            </select>
+            />
           )}
-          <select
-            className="allus-filter-select"
+          <FilterDropdown
             value={clientFilter}
-            onChange={(e) => {
-              setClientFilter(e.target.value);
+            placeholderLabel="Todos os clientes"
+            options={clientOptions.map(([id, name]) => ({ value: id, label: name }))}
+            disabled={clientOptions.length === 0}
+            onChange={(value) => {
+              setClientFilter(value);
               setProjectFilter('');
             }}
-            disabled={clientOptions.length === 0}
-          >
-            <option value="">Todos os clientes</option>
-            {clientOptions.map(([id, name]) => (
-              <option key={id} value={id}>{name}</option>
-            ))}
-          </select>
-          <select
-            className="allus-filter-select"
+          />
+          <FilterDropdown
             value={projectFilter}
-            onChange={(e) => setProjectFilter(e.target.value)}
+            placeholderLabel="Todos os projetos"
+            options={projectOptions.map(([id, name]) => ({ value: id, label: name }))}
             disabled={projectOptions.length === 0}
-          >
-            <option value="">Todos os projetos</option>
-            {projectOptions.map(([id, name]) => (
-              <option key={id} value={id}>{name}</option>
-            ))}
-          </select>
+            onChange={setProjectFilter}
+          />
           {(personFilter || clientFilter || projectFilter) && (
             <button
               style={pillButtonStyle}
@@ -289,90 +278,106 @@ export function TimeCenter() {
           )}
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '2fr 80px 100px',
-            fontSize: 11,
-            color: 'var(--allus-text-muted)',
-            padding: '0 8px',
-          }}
-        >
-          <span>PESSOA / CLIENTE / PROJETO / TAREFA</span>
-          <span>SESSÕES</span>
-          <span>TEMPO</span>
-        </div>
+        <section style={listHeaderStyle}>
+          <div>
+            <div style={sectionKickerStyle}>Time</div>
+            <div style={{ fontSize: 18, fontWeight: 800, marginTop: 2 }}>Horas por pessoa</div>
+          </div>
+          <div style={listHintStyle}>Clique numa linha pra expandir clientes, projetos e tarefas.</div>
+        </section>
 
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {loading && <div style={{ fontSize: 13, color: 'var(--allus-text-muted)' }}>Carregando...</div>}
+        <div style={treeListStyle}>
+          {loading && <div style={{ fontSize: 13, color: 'var(--allus-text-muted)', padding: '8px 6px' }}>Carregando...</div>}
           {!loading && filteredPeople.length === 0 && (
-            <div style={{ fontSize: 13, color: 'var(--allus-text-muted)' }}>
+            <div style={{ fontSize: 13, color: 'var(--allus-text-muted)', padding: '8px 6px' }}>
               {people.length === 0 ? 'Nenhuma tarefa registrada neste período.' : 'Nenhum resultado para esses filtros.'}
             </div>
           )}
-          {filteredPeople.map((person) => (
-            <div key={person.userId}>
-              <ReportRow
-                label={person.fullName}
-                color="var(--allus-yellow-deep)"
-                seconds={
-                  person.clients.reduce((s, c) => s + c.projects.reduce((s2, p) => s2 + p.totalSeconds, 0), 0)
-                }
-                expandable
-                expanded={expanded.has(`p:${person.userId}`)}
-                onToggle={() => toggle(`p:${person.userId}`)}
-              />
-              {expanded.has(`p:${person.userId}`) &&
-                person.clients.map((client) => (
-                  <div key={client.id} style={{ marginLeft: 16 }}>
-                    <ReportRow
-                      label={client.clientName}
-                      color="var(--allus-white)"
-                      seconds={client.projects.reduce((s, p) => s + p.totalSeconds, 0)}
-                      expandable
-                      expanded={expanded.has(`c:${client.id}`)}
-                      onToggle={() => toggle(`c:${client.id}`)}
-                    />
-                    {expanded.has(`c:${client.id}`) &&
-                      client.projects.map((project) => (
-                        <div key={project.id} style={{ marginLeft: 16 }}>
-                          <ReportRow
-                            label={project.projectName}
-                            color="var(--allus-yellow)"
-                            seconds={project.totalSeconds}
-                            expandable
-                            expanded={expanded.has(`pr:${project.id}`)}
-                            onToggle={() => toggle(`pr:${project.id}`)}
-                          />
-                          {expanded.has(`pr:${project.id}`) &&
-                            project.tasks.map((task) => (
-                              <div key={task.id} style={{ marginLeft: 16 }}>
-                                <ReportRow
-                                  label={task.title}
-                                  seconds={task.totalSeconds}
-                                  sessions={task.totalSessionCount}
-                                  expandable={task.subtasks.length > 0}
-                                  expanded={expanded.has(`t:${task.id}`)}
-                                  onToggle={() => toggle(`t:${task.id}`)}
+          {filteredPeople.map((person) => {
+            const personSeconds = person.clients.reduce((s, c) => s + c.projects.reduce((s2, p) => s2 + p.totalSeconds, 0), 0);
+            const personSessions = person.clients.reduce(
+              (s, c) => s + c.projects.reduce((s2, p) => s2 + p.tasks.reduce((s3, t) => s3 + t.totalSessionCount, 0), 0),
+              0,
+            );
+            return (
+              <div key={person.userId} style={personGroupStyle}>
+                <div className="allus-tree-row" style={personRowStyle} onClick={() => toggle(`p:${person.userId}`)}>
+                  <span style={chevronStyle}>{expanded.has(`p:${person.userId}`) ? '▾' : '▸'}</span>
+                  <span style={personAvatarStyle}>{getInitials(person.fullName)}</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ color: 'var(--allus-yellow)', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {person.fullName}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginTop: 2 }}>
+                      {person.clients.length} cliente(s) · {personSessions} sessão(ões)
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 12, color: 'var(--allus-text-muted)', whiteSpace: 'nowrap' }}>{personSessions}</span>
+                  <span style={{ fontFamily: 'var(--allus-font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--allus-yellow)', whiteSpace: 'nowrap' }}>
+                    {formatDuration(personSeconds)}
+                  </span>
+                </div>
+
+                {expanded.has(`p:${person.userId}`) && (
+                  <div style={clientBlockStyle}>
+                    {person.clients.map((client) => (
+                      <div key={client.id}>
+                        <TreeRow
+                          label={client.clientName}
+                          seconds={client.projects.reduce((s, p) => s + p.totalSeconds, 0)}
+                          expandable
+                          expanded={expanded.has(`c:${client.id}`)}
+                          onToggle={() => toggle(`c:${client.id}`)}
+                        />
+                        {expanded.has(`c:${client.id}`) && (
+                          <div style={projectBlockStyle}>
+                            {client.projects.map((project) => (
+                              <div key={project.id}>
+                                <TreeRow
+                                  label={project.projectName}
+                                  color="var(--allus-yellow)"
+                                  seconds={project.totalSeconds}
+                                  expandable
+                                  expanded={expanded.has(`pr:${project.id}`)}
+                                  onToggle={() => toggle(`pr:${project.id}`)}
                                 />
-                                {expanded.has(`t:${task.id}`) && (
-                                  <div style={{ marginLeft: 16 }}>
-                                    {task.directSeconds > 0 && (
-                                      <ReportRow label="Direto na tarefa" seconds={task.directSeconds} muted />
-                                    )}
-                                    {task.subtasks.map((sub) => (
-                                      <ReportRow key={sub.id} label={sub.title} seconds={sub.totalSeconds} sessions={sub.sessionCount} />
+                                {expanded.has(`pr:${project.id}`) && (
+                                  <div style={taskBlockStyle}>
+                                    {project.tasks.map((task) => (
+                                      <div key={task.id}>
+                                        <TreeRow
+                                          label={task.title}
+                                          seconds={task.totalSeconds}
+                                          sessions={task.totalSessionCount}
+                                          expandable={task.subtasks.length > 0}
+                                          expanded={expanded.has(`t:${task.id}`)}
+                                          onToggle={() => toggle(`t:${task.id}`)}
+                                        />
+                                        {expanded.has(`t:${task.id}`) && (
+                                          <div style={taskChildrenStyle}>
+                                            {task.directSeconds > 0 && (
+                                              <TreeRow label="Direto na tarefa" seconds={task.directSeconds} muted />
+                                            )}
+                                            {task.subtasks.map((sub) => (
+                                              <TreeRow key={sub.id} label={sub.title} seconds={sub.totalSeconds} sessions={sub.sessionCount} />
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
                                     ))}
                                   </div>
                                 )}
                               </div>
                             ))}
-                        </div>
-                      ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
       <ToastHost />
@@ -410,7 +415,7 @@ function SummaryCard({ label, value, valueColor }: { label: string; value: strin
   );
 }
 
-function ReportRow({
+function TreeRow({
   label,
   color,
   seconds,
@@ -431,26 +436,35 @@ function ReportRow({
 }) {
   return (
     <div
+      className={expandable ? 'allus-tree-row' : undefined}
+      style={{ ...treeRowStyle, cursor: expandable ? 'pointer' : 'default' }}
       onClick={expandable ? onToggle : undefined}
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '2fr 80px 100px',
-        alignItems: 'center',
-        padding: '6px 8px',
-        borderRadius: 8,
-        fontSize: 13,
-        cursor: expandable ? 'pointer' : 'default',
-        color: muted ? 'var(--allus-text-muted)' : undefined,
-      }}
     >
-      <span style={{ color }}>
-        {expandable ? (expanded ? '▾ ' : '▸ ') : ''}
+      <span style={chevronStyle}>{expandable ? (expanded ? '▾' : '▸') : ''}</span>
+      <span
+        style={{
+          color: muted ? 'var(--allus-text-muted)' : color,
+          fontWeight: color ? 700 : 500,
+          minWidth: 0,
+          flex: 1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
         {label}
       </span>
-      <span style={{ fontSize: 12 }}>{sessions ?? ''}</span>
-      <span style={{ fontFamily: 'var(--allus-font-mono)', fontSize: 12 }}>{formatDuration(seconds)}</span>
+      <span style={{ fontSize: 11, color: 'var(--allus-text-muted)', whiteSpace: 'nowrap' }}>{sessions ?? ''}</span>
+      <span style={{ fontFamily: 'var(--allus-font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{formatDuration(seconds)}</span>
     </div>
   );
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const initials = parts.length === 1 ? parts[0].slice(0, 2) : `${parts[0][0]}${parts[parts.length - 1][0]}`;
+  return initials.toUpperCase();
 }
 
 const pillButtonStyle: React.CSSProperties = {
@@ -461,4 +475,119 @@ const pillButtonStyle: React.CSSProperties = {
   color: 'var(--allus-text-primary)',
   fontSize: 12,
   whiteSpace: 'nowrap',
+};
+
+const listHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  gap: 16,
+  padding: '2px 4px',
+};
+
+const sectionKickerStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 800,
+  color: 'var(--allus-text-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+};
+
+const listHintStyle: React.CSSProperties = {
+  maxWidth: 360,
+  fontSize: 11,
+  color: 'var(--allus-text-muted)',
+  textAlign: 'right',
+};
+
+const treeListStyle: React.CSSProperties = {
+  flex: 1,
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 10,
+  paddingRight: 4,
+};
+
+const personGroupStyle: React.CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid rgba(236,220,1,0.10)',
+  background: 'linear-gradient(135deg, rgba(236,220,1,0.045), rgba(255,255,255,0.018))',
+  overflow: 'visible',
+  minWidth: 0,
+};
+
+const personRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '10px 12px',
+  fontSize: 13,
+  cursor: 'pointer',
+  minWidth: 0,
+};
+
+const personAvatarStyle: React.CSSProperties = {
+  width: 30,
+  height: 30,
+  borderRadius: 10,
+  display: 'grid',
+  placeItems: 'center',
+  background: 'rgba(236,220,1,0.14)',
+  color: 'var(--allus-yellow)',
+  fontSize: 11,
+  fontWeight: 900,
+  flexShrink: 0,
+};
+
+const clientBlockStyle: React.CSSProperties = {
+  marginLeft: 18,
+  marginRight: 6,
+  borderLeft: '1px solid rgba(236,220,1,0.16)',
+  paddingLeft: 8,
+  paddingBottom: 10,
+  minWidth: 0,
+};
+
+const projectBlockStyle: React.CSSProperties = {
+  marginLeft: 8,
+  paddingLeft: 6,
+  borderLeft: '1px solid rgba(255,255,255,0.08)',
+  minWidth: 0,
+};
+
+const taskBlockStyle: React.CSSProperties = {
+  marginLeft: 8,
+  paddingLeft: 6,
+  borderLeft: '1px solid rgba(255,255,255,0.08)',
+  minWidth: 0,
+};
+
+const taskChildrenStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  marginLeft: 8,
+  paddingLeft: 8,
+  paddingBottom: 4,
+  borderLeft: '1px solid rgba(126,242,155,0.18)',
+  minWidth: 0,
+};
+
+const chevronStyle: React.CSSProperties = {
+  width: 14,
+  color: 'var(--allus-yellow)',
+  fontSize: 11,
+  flexShrink: 0,
+};
+
+const treeRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '7px 9px',
+  borderRadius: 8,
+  fontSize: 13,
+  minWidth: 0,
 };

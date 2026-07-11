@@ -7,6 +7,7 @@ import { TaskCenter } from './pages/TaskCenter/TaskCenter';
 import { TimeCenter } from './pages/TimeCenter/TimeCenter';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { Pulse } from './pages/Dashboard/Pulse';
+import { Members } from './pages/Members/Members';
 import { Splash } from './pages/Splash/Splash';
 import { SoundBridge } from './components/SoundBridge';
 import './styles/index.css';
@@ -22,6 +23,7 @@ const pages: Record<string, ComponentType> = {
   timeCenter: TimeCenter,
   dashboard: Dashboard,
   pulse: Pulse,
+  members: Members,
   splash: Splash,
 };
 

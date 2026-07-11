@@ -56,6 +56,10 @@ button.allus-menu-item:not(:disabled):hover {
   box-shadow: none;
 }
 
+.allus-tree-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
 button.allus-menu-trigger:not(:disabled):hover,
 button.allus-menu-trigger:not(:disabled):active,
 button.allus-menu-trigger:focus,
@@ -88,53 +92,3 @@ button:disabled {
   border-radius: 8px;
 }
 
-.allus-filter-select {
-  min-height: 30px;
-  padding: 6px 34px 6px 12px;
-  border: 1px solid rgba(236, 220, 1, 0.22);
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, rgba(236, 220, 1, 0.08), rgba(255, 255, 255, 0.025)),
-    rgba(0, 0, 1, 0.78);
-  color: var(--allus-text-primary);
-  font-size: 12px;
-  font-weight: 650;
-  outline: none;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px rgba(0, 0, 0, 0.18);
-  cursor: pointer;
-  appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--allus-yellow) 50%),
-    linear-gradient(135deg, var(--allus-yellow) 50%, transparent 50%),
-    linear-gradient(135deg, rgba(236, 220, 1, 0.08), rgba(255, 255, 255, 0.025));
-  background-position:
-    calc(100% - 16px) 12px,
-    calc(100% - 11px) 12px,
-    0 0;
-  background-size:
-    5px 5px,
-    5px 5px,
-    100% 100%;
-  background-repeat: no-repeat;
-}
-
-.allus-filter-select:hover {
-  border-color: rgba(236, 220, 1, 0.48);
-  background-color: rgba(16, 16, 12, 0.92);
-}
-
-.allus-filter-select:focus {
-  border-color: var(--allus-yellow);
-  box-shadow: 0 0 0 2px rgba(236, 220, 1, 0.16), 0 10px 22px rgba(0, 0, 0, 0.24);
-}
-
-.allus-filter-select:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.allus-filter-select option {
-  background: #080806;
-  color: var(--allus-text-primary);
-  font-weight: 600;
-}

@@ -490,6 +490,17 @@ export function MainWindow() {
                   </CollapsibleSubsection>
                 </div>
 
+                {snapshot.auth.profile?.role === 'admin' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-2)' }}>
+                    <button
+                      type="button"
+                      onClick={() => invokeAction('window:openMembers', undefined)}
+                      style={{ ...pillButtonStyle, alignSelf: 'flex-start' }}
+                    >
+                      Gerenciar membros da equipe
+                    </button>
+                  </div>
+                )}
                 {/* Bloco: Atalhos de teclado */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-2)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
                   <button

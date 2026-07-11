@@ -86,6 +86,7 @@ const windows: {
   timeCenter: BrowserWindow | null;
   dashboard: BrowserWindow | null;
   pulse: BrowserWindow | null;
+  members: BrowserWindow | null;
   splash: BrowserWindow | null;
 } = {
   login: null,
@@ -95,6 +96,7 @@ const windows: {
   timeCenter: null,
   dashboard: null,
   pulse: null,
+  members: null,
   splash: null,
 };
 
@@ -701,6 +703,33 @@ export function showPulse(shouldReveal = true): void {
   windows.pulse = win;
 }
 
+export function showMembers(shouldReveal = true): void {
+  if (windows.members && !windows.members.isDestroyed()) {
+    if (shouldReveal) revealWindow(windows.members);
+    return;
+  }
+  const win = new BrowserWindow({
+    width: 900,
+    height: 640,
+    minWidth: 760,
+    minHeight: 520,
+    frame: false,
+    transparent: false,
+    backgroundColor: OPAQUE_FALLBACK_BG,
+    icon: iconPath(),
+    hasShadow: false,
+    show: false,
+    webPreferences: { preload: preloadPath(), contextIsolation: true, nodeIntegration: false },
+  });
+  revealWhenReady(win, shouldReveal);
+  loadPage(win, 'members');
+  hideInsteadOfClose(win);
+  win.on('closed', () => {
+    windows.members = null;
+  });
+  windows.members = win;
+}
+
 export function preloadSecondaryWindows(): void {
   if (secondaryPreloadScheduled) return;
   const authState = authManager.getState();
@@ -717,7 +746,7 @@ export function preloadSecondaryWindows(): void {
 
 export function closeAllAppWindows(): void {
   secondaryPreloadScheduled = false;
-  for (const key of ['main', 'taskCenter', 'timeCenter', 'dashboard', 'pulse', 'floating'] as const) {
+  for (const key of ['main', 'taskCenter', 'timeCenter', 'dashboard', 'pulse', 'members', 'floating'] as const) {
     windows[key]?.close();
     windows[key] = null;
   }

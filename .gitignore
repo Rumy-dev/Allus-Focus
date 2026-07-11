@@ -94,3 +94,6 @@ out-*/
 
 # Release packaging artifacts (entire build output, not just specific formats)
 release/
+
+# Supabase CLI local cache (link state, version pins) — machine-specific
+supabase/.temp/

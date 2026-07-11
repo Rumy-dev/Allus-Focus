@@ -125,8 +125,13 @@ export interface IpcInvokeMap {
   'window:openTimeCenter': () => void;
   'window:openDashboard': () => void;
   'window:openPulse': () => void;
+  'window:openMembers': () => void;
   'window:openMain': () => void;
   'window:openFloating': () => void;
+  'admin:members:list': () => { ok: true; members: AdminMemberRecord[] } | { ok: false; error: string };
+  'admin:members:invite': (args: { email: string; fullName: string; role: 'member' | 'admin'; password: string }) => { ok: true } | { ok: false; error: string };
+  'admin:members:setRole': (args: { userId: string; role: 'member' | 'admin' }) => { ok: true } | { ok: false; error: string };
+  'admin:members:setPassword': (args: { userId: string; password: string }) => { ok: true } | { ok: false; error: string };
   'window:toggleTaskCenter': () => void;
   'window:toggleTimeCenter': () => void;
   'window:toggleDashboard': () => void;
@@ -141,3 +146,11 @@ export interface IpcInvokeMap {
 }
 
 export type IpcChannel = keyof IpcInvokeMap;
+
+export interface AdminMemberRecord {
+  id: string;
+  fullName: string;
+  email: string | null;
+  role: 'member' | 'admin';
+  createdAt: string;
+}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { BarChart } from '../../components/BarChart';
 import { TrendChart } from '../../components/TrendChart';
@@ -7,6 +8,9 @@ import { useAppState } from '../../useAppState';
 import { Titlebar } from '../../components/Titlebar';
 import { ToastHost } from '../../components/ToastHost';
 import { useDataRefreshKey } from '../../useDataRefreshKey';
+import { invokeAction } from '../../invoke';
+import { toast } from '../../toast';
+import { Z } from '../../styles/zIndex';
 import type { PulseResult, PulseTeamMember } from '../../../shared/types';
 import { formatDuration } from '../../../shared/types';
 
@@ -18,6 +22,7 @@ export function Pulse() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAllBudgets, setShowAllBudgets] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
 
   const loadPulse = async () => {
     try {
@@ -38,6 +43,7 @@ export function Pulse() {
     await loadPulse();
     setRefreshing(false);
   };
+
 
   useEffect(() => {
     loadPulse();
@@ -132,8 +138,6 @@ export function Pulse() {
     label: project.projectName,
     value: Math.round(project.loggedHours * 3600),
   }));
-  const supabaseUsersUrl = buildSupabaseUsersUrl();
-
   return (
     <div
       className="allus-app-bg allus-watermark"
@@ -161,10 +165,9 @@ export function Pulse() {
             {snapshot.auth.profile?.role === 'admin' && (
               <button
                 type="button"
-                onClick={() => window.open(supabaseUsersUrl, '_blank', 'noopener,noreferrer')}
+                onClick={() => setShowAddMember(true)}
                 style={inviteButtonStyle}
-                disabled={!supabaseUsersUrl}
-                title="Abrir Supabase Authentication > Users"
+                title="Adicionar membro"
               >
                 + Adicionar membro
               </button>
@@ -355,21 +358,112 @@ export function Pulse() {
         </section>
       </div>
       <ToastHost />
+      {showAddMember && <AddMemberModal onClose={() => setShowAddMember(false)} />}
     </div>
   );
 }
 
-function buildSupabaseUsersUrl(): string {
-  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  if (!url) return 'https://supabase.com/dashboard';
+function AddMemberModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<'member' | 'admin'>('member');
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  try {
-    const host = new URL(url).host;
-    const projectRef = host.split('.')[0];
-    return `https://supabase.com/dashboard/project/${projectRef}/auth/users`;
-  } catch {
-    return 'https://supabase.com/dashboard';
-  }
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || password.trim().length < 6) return;
+    setSaving(true);
+    const result = await invokeAction('admin:members:invite', {
+      email: email.trim(),
+      fullName: fullName.trim(),
+      role,
+      password: password.trim(),
+    });
+    setSaving(false);
+    if (result?.ok) {
+      toast.success('Membro criado! Já pode fazer login com o e-mail e a senha definidos.');
+      onClose();
+    }
+  };
+
+  return createPortal(
+    <div style={modalOverlayStyle} onClick={onClose}>
+      <form
+        className="allus-no-drag"
+        style={modalPanelStyle}
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--allus-text-primary)' }}>Adicionar membro</div>
+            <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginTop: 2 }}>Cria a conta e já define a senha, sem depender de e-mail.</div>
+          </div>
+          <button type="button" onClick={onClose} style={modalCloseButtonStyle} title="Fechar">
+            ✕
+          </button>
+        </div>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+          <span style={modalFieldLabelStyle}>E-mail</span>
+          <input
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="nome@allus.com.br"
+            style={modalInputStyle}
+          />
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+          <span style={modalFieldLabelStyle}>Nome</span>
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Nome completo"
+            style={modalInputStyle}
+          />
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
+          <span style={modalFieldLabelStyle}>Senha</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mínimo 6 caracteres"
+            style={modalInputStyle}
+          />
+        </label>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
+          <span style={modalFieldLabelStyle}>Cargo</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              style={{ ...modalRoleButtonStyle, ...(role === 'member' ? modalRoleButtonActiveStyle : null) }}
+              onClick={() => setRole('member')}
+            >
+              Membro
+            </button>
+            <button
+              type="button"
+              style={{ ...modalRoleButtonStyle, ...(role === 'admin' ? modalRoleButtonActiveStyle : null) }}
+              onClick={() => setRole('admin')}
+            >
+              Admin
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" style={modalSubmitButtonStyle} disabled={saving || !email.trim() || password.trim().length < 6}>
+          {saving ? 'Criando...' : 'Criar membro'}
+        </button>
+      </form>
+    </div>,
+    document.body,
+  );
 }
 
 function KpiCard({ label, value, helper, accent }: { label: string; value: string; helper?: string; accent?: boolean }) {
@@ -518,6 +612,82 @@ const inviteButtonStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 800,
   whiteSpace: 'nowrap',
+};
+
+const modalOverlayStyle: CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.7)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: Z.popover,
+  backdropFilter: 'blur(2px)',
+};
+
+const modalPanelStyle: CSSProperties = {
+  background: 'var(--allus-surface)',
+  borderRadius: 16,
+  padding: 20,
+  minWidth: 300,
+  maxWidth: 340,
+  boxShadow: '0 25px 80px rgba(0,0,0,0.4)',
+};
+
+const modalCloseButtonStyle: CSSProperties = {
+  background: 'transparent',
+  border: 'none',
+  color: 'var(--allus-text-muted)',
+  fontSize: 14,
+  cursor: 'pointer',
+  padding: 2,
+  lineHeight: 1,
+};
+
+const modalFieldLabelStyle: CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+  color: 'var(--allus-text-muted)',
+};
+
+const modalInputStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--allus-glass-border)',
+  borderRadius: 10,
+  padding: '9px 11px',
+  color: 'var(--allus-text-primary)',
+  outline: 'none',
+  fontSize: 13,
+};
+
+const modalRoleButtonStyle: CSSProperties = {
+  flex: 1,
+  padding: '7px 12px',
+  borderRadius: 999,
+  border: '1px solid var(--allus-glass-border)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--allus-text-primary)',
+  fontSize: 12,
+};
+
+const modalRoleButtonActiveStyle: CSSProperties = {
+  background: 'var(--allus-gradient)',
+  color: '#000001',
+  fontWeight: 700,
+  border: '1px solid transparent',
+};
+
+const modalSubmitButtonStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 36,
+  borderRadius: 12,
+  border: '1px solid rgba(236, 220, 1, 0.32)',
+  background: 'rgba(236, 220, 1, 0.10)',
+  color: 'var(--allus-yellow-soft)',
+  fontSize: 13,
+  fontWeight: 800,
 };
 
 const refreshButtonStyle: CSSProperties = {

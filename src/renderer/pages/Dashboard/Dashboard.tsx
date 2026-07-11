@@ -8,6 +8,7 @@ import { DateFilterBar } from '../../components/DateFilterBar';
 import { BarChart } from '../../components/BarChart';
 import { TrendChart } from '../../components/TrendChart';
 import { ToastHost } from '../../components/ToastHost';
+import { FilterDropdown } from '../../components/FilterDropdown';
 import { useDataRefreshKey } from '../../useDataRefreshKey';
 import type { DateRangeFilter, SessionDateFilter, TimeReportPerson } from '../../../shared/types';
 
@@ -28,10 +29,13 @@ interface ChartItem {
 
 export function Dashboard() {
   const snapshot = useAppState();
+  const isAdmin = snapshot?.auth.profile?.role === 'admin';
+  const ownUserId = snapshot?.auth.profile?.id ?? null;
   const [sessionFilter, setSessionFilter] = useState<SessionDateFilter>('Mês');
   const range: DateRangeFilter = { filter: sessionFilter };
   const [drill, setDrill] = useState<DrillState>({ level: 'clients' });
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const effectiveUserId = isAdmin ? selectedUserId : ownUserId;
   const [report, setReport] = useState<{ people: TimeReportPerson[] } | null>(null);
   const [trend, setTrend] = useState<{ date: string; totalSeconds: number }[]>([]);
   const [manualRefreshTick, setManualRefreshTick] = useState(0);
@@ -53,7 +57,7 @@ export function Dashboard() {
         range,
         clientId: drill.clientId,
         projectId: drill.projectId,
-        userId: selectedUserId ?? undefined,
+        userId: effectiveUserId ?? undefined,
       });
       if (trendData) setTrend(trendData);
     } catch (err) {
@@ -70,7 +74,7 @@ export function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [sessionFilter, drill, selectedUserId, refreshKey, manualRefreshTick]);
+  }, [sessionFilter, drill, effectiveUserId, refreshKey, manualRefreshTick]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -84,9 +88,9 @@ export function Dashboard() {
 
   const filteredPeople = useMemo(() => {
     if (!report) return [];
-    if (!selectedUserId) return report.people;
-    return report.people.filter((p) => p.userId === selectedUserId);
-  }, [report, selectedUserId]);
+    if (!effectiveUserId) return report.people;
+    return report.people.filter((p) => p.userId === effectiveUserId);
+  }, [report, effectiveUserId]);
 
   const peopleNames = useMemo(() => {
     if (!report) return [];
@@ -94,7 +98,7 @@ export function Dashboard() {
   }, [report]);
 
   const personData = useMemo<ChartItem[]>(() => {
-    if (!report || selectedUserId) return [];
+    if (!report || effectiveUserId) return [];
     return report.people
       .map((p) => ({
         id: p.userId,
@@ -214,14 +218,14 @@ export function Dashboard() {
         } as CSSProperties
       }
     >
-      <Titlebar title="PAINEL DO GESTOR" />
+      <Titlebar title={isAdmin ? 'PAINEL DO GESTOR' : 'MEU PAINEL'} />
       <div style={pageStyle}>
         <section style={heroStyle}>
           <div>
-            <div style={eyebrowStyle}>Visão executiva</div>
-            <div style={{ fontSize: 24, fontWeight: 800, marginTop: 3 }}>Foco do time</div>
+            <div style={eyebrowStyle}>{isAdmin ? 'Visão executiva' : 'Seus dados'}</div>
+            <div style={{ fontSize: 24, fontWeight: 800, marginTop: 3 }}>{isAdmin ? 'Foco do time' : 'Seu foco'}</div>
             <div style={{ fontSize: 12, color: 'var(--allus-text-secondary)', marginTop: 4 }}>
-              Período: {sessionFilter} {selectedUserId ? '· pessoa filtrada' : '· equipe completa'}
+              Período: {sessionFilter} {isAdmin ? (selectedUserId ? '· pessoa filtrada' : '· equipe completa') : ''}
             </div>
           </div>
           <div style={filtersStyle}>
@@ -235,37 +239,30 @@ export function Dashboard() {
             >
               {refreshing ? 'Atualizando...' : '↻ Atualizar'}
             </button>
-            <div style={personFilterStyle}>
-              <span style={filterLabelTextStyle}>Pessoa</span>
-              <div style={personSegmentStyle}>
-                <PersonFilterButton
-                  label="Todas"
-                  active={!selectedUserId}
-                  onClick={() => {
-                    setSelectedUserId(null);
+            {isAdmin && (
+              <div style={personFilterStyle}>
+                <span style={filterLabelTextStyle}>Pessoa</span>
+                <FilterDropdown
+                  value={selectedUserId ?? ''}
+                  placeholderLabel="Todas"
+                  options={peopleNames.map((p) => ({ value: p.id, label: p.name }))}
+                  onChange={(value) => {
+                    setSelectedUserId(value || null);
                     setDrill({ level: 'clients' });
                   }}
+                  style={{ maxWidth: 180 }}
                 />
-                {peopleNames.map((p) => (
-                  <PersonFilterButton
-                    key={p.id}
-                    label={p.name}
-                    active={selectedUserId === p.id}
-                    onClick={() => {
-                      setSelectedUserId(p.id);
-                      setDrill({ level: 'clients' });
-                    }}
-                  />
-                ))}
               </div>
-            </div>
+            )}
           </div>
         </section>
 
         <section style={kpiGridStyle}>
           <KpiCard label="Horas no período" value={formatTime(totalSeconds)} accent />
-          <KpiCard label="Pessoas com foco" value={`${activePeople}/${filteredPeople.length || 0}`} helper="com horas registradas" />
-          <KpiCard label="Média por pessoa" value={formatTime(avgPerPerson)} helper="entre pessoas ativas" />
+          {isAdmin && (
+            <KpiCard label="Pessoas com foco" value={`${activePeople}/${filteredPeople.length || 0}`} helper="com horas registradas" />
+          )}
+          {isAdmin && <KpiCard label="Média por pessoa" value={formatTime(avgPerPerson)} helper="entre pessoas ativas" />}
           <KpiCard label="Maior concentração" value={`${topFocusShare}%`} helper={topFocus?.label ?? 'sem dados'} />
         </section>
 
@@ -307,12 +304,12 @@ export function Dashboard() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
             <div className="allus-glass" style={panelStyle}>
-              <div style={panelTitleStyle}>Ranking da equipe</div>
+              <div style={panelTitleStyle}>{isAdmin ? 'Ranking da equipe' : 'Onde você mais focou'}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 12 }}>
-                {(selectedUserId ? drillItems : personData).slice(0, 6).map((item, index) => (
+                {(isAdmin && !selectedUserId ? personData : drillItems).slice(0, 6).map((item, index) => (
                   <RankingRow key={item.id} index={index + 1} label={item.label} seconds={item.value} totalSeconds={totalSeconds} />
                 ))}
-                {(selectedUserId ? drillItems : personData).length === 0 && (
+                {(isAdmin && !selectedUserId ? personData : drillItems).length === 0 && (
                   <div style={emptyStyle}>Sem dados para o período.</div>
                 )}
               </div>
@@ -321,7 +318,7 @@ export function Dashboard() {
             <div className="allus-glass" style={panelStyle}>
               <div style={panelTitleStyle}>Leitura rápida</div>
               <div style={insightGridStyle}>
-                <Insight label="Pessoa destaque" value={topPerson?.label ?? '—'} />
+                {isAdmin && <Insight label="Pessoa destaque" value={topPerson?.label ?? '—'} />}
                 <Insight label="Foco principal" value={topFocus?.label ?? '—'} />
                 <Insight label="Média diária" value={formatTime(trendAvg)} />
                 <Insight label="Tipos ativos" value={String(typeData.filter((i) => i.value > 0).length)} />
@@ -383,22 +380,6 @@ function Insight({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PersonFilterButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      className="allus-menu-item"
-      type="button"
-      onClick={onClick}
-      style={{
-        ...personFilterButtonStyle,
-        ...(active ? personFilterButtonActiveStyle : null),
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
 function formatTime(seconds: number): string {
   const safe = Math.max(0, Math.floor(seconds));
   const h = Math.floor(safe / 3600);
@@ -449,34 +430,6 @@ const personFilterStyle: React.CSSProperties = {
   border: '1px solid rgba(236, 220, 1, 0.18)',
   background: 'linear-gradient(135deg, rgba(236, 220, 1, 0.07), rgba(255,255,255,0.025))',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 8px 18px rgba(0,0,0,0.16)',
-};
-
-const personSegmentStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: 4,
-  maxWidth: 260,
-  overflowX: 'auto',
-  paddingBottom: 1,
-};
-
-const personFilterButtonStyle: React.CSSProperties = {
-  flexShrink: 0,
-  minHeight: 30,
-  padding: '6px 11px',
-  borderRadius: 12,
-  border: '1px solid rgba(236, 220, 1, 0.22)',
-  background: 'rgba(0, 0, 1, 0.64)',
-  color: 'var(--allus-text-primary)',
-  fontSize: 12,
-  fontWeight: 750,
-  whiteSpace: 'nowrap',
-  boxShadow: 'none',
-};
-
-const personFilterButtonActiveStyle: React.CSSProperties = {
-  background: 'var(--allus-gradient)',
-  color: '#000001',
-  borderColor: 'rgba(236, 220, 1, 0.62)',
 };
 
 const refreshButtonStyle: React.CSSProperties = {

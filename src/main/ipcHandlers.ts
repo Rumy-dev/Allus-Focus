@@ -1,6 +1,7 @@
 import { BrowserWindow, app, ipcMain } from 'electron';
 import { appStore } from './store/appStore';
 import { authManager } from './auth/authManager';
+import { supabase } from './supabase/client';
 import * as timerEngine from './store/timerEngine';
 import * as taskStore from './store/taskStore';
 import * as reportBuilder from './store/reportBuilder';
@@ -24,10 +25,39 @@ function handle<K extends keyof IpcInvokeMap>(
   });
 }
 
+async function adminCall<T>(path: string, payload?: unknown, method: 'GET' | 'POST' = 'POST'): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(path, {
+    method,
+    // GET não pode ter corpo (fetch lança erro) — só envia body em POST.
+    ...(method === 'GET' ? {} : { body: payload ?? {} }),
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    let detailedMessage: string | undefined;
+    if (context && typeof context.text === 'function') {
+      try {
+        const raw = await context.clone().text();
+        console.error(`[adminCall:${path}] status=${context.status} body=${raw}`);
+        try {
+          detailedMessage = JSON.parse(raw)?.error;
+        } catch {
+          // corpo não é JSON
+        }
+      } catch (readErr) {
+        console.error(`[adminCall:${path}] falha ao ler corpo do erro`, readErr);
+      }
+    }
+    throw new Error(detailedMessage ?? error.message);
+  }
+  return data as T;
+}
+
 export function registerIpcHandlers(): void {
   handle('auth:signIn', async ({ email, password }) => authManager.signIn(email, password));
   handle('auth:signOut', async () => {
     await authManager.signOut();
+    windowManager.closeAllAppWindows();
+    windowManager.showLogin();
   });
   handle('auth:changePassword', async ({ newPassword }) => authManager.changePassword(newPassword));
   handle('auth:requestPasswordReset', async ({ email }) => authManager.requestPasswordReset(email));
@@ -183,10 +213,15 @@ export function registerIpcHandlers(): void {
   handle('window:openTimeCenter', async () => windowManager.showTimeCenter());
   handle('window:openDashboard', async () => windowManager.showDashboard());
   handle('window:openPulse', async () => windowManager.showPulse());
+  handle('window:openMembers', async () => windowManager.showMembers());
   handle('window:openMain', async () => windowManager.showMainWindow());
   handle('window:openFloating', async () => {
     windowManager.showFloatingPanel();
   });
+  handle('admin:members:list', async () => adminCall('admin-members', undefined, 'GET'));
+  handle('admin:members:invite', async (args) => adminCall('admin-members', { action: 'invite', ...args }));
+  handle('admin:members:setRole', async (args) => adminCall('admin-members', { action: 'set-role', ...args }));
+  handle('admin:members:setPassword', async (args) => adminCall('admin-members', { action: 'set-password', ...args }));
 
   handle('window:toggleTaskCenter', async () => windowManager.toggleTaskCenter());
   handle('window:toggleTimeCenter', async () => windowManager.toggleTimeCenter());
