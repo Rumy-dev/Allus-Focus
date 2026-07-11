@@ -34,6 +34,10 @@ jobs:
             Write-Error "VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY ausentes nos secrets do repositório."
             exit 1
           }
+          if ($env:VITE_SUPABASE_URL -notmatch '^https?://') {
+            Write-Error "VITE_SUPABASE_URL não parece uma URL válida (precisa começar com http:// ou https://). Confira aspas/espaços extras no secret."
+            exit 1
+          }
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
