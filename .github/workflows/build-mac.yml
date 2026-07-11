@@ -24,6 +24,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Se esses secrets estiverem vazios/com nome errado, o build sobe um
+      # app quebrado sem avisar — o Vite não falha, só embute "undefined"
+      # e o erro só aparece em runtime pro usuário final. Falha cedo aqui.
+      - name: Verify Supabase secrets are set
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
+            echo "::error::VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY ausentes nos secrets do repositório."
+            exit 1
+          fi
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
       # Publica direto no GitHub Releases (PublisherGithub em forge.config.ts)
       # em vez de só empacotar — assim toda tag v* vira a "Latest release" de
       # verdade, que é o que o auto-updater (update-electron-app) checa nos
@@ -36,6 +49,8 @@ jobs:
         run: npm run publish || npm run publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Upload .dmg artifact
         # Mantido como backup/diagnóstico mesmo já publicando a release.
