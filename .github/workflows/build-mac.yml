@@ -6,6 +6,9 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build-mac:
     runs-on: macos-latest
@@ -21,13 +24,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build .dmg
+      # Publica direto no GitHub Releases (PublisherGithub em forge.config.ts)
+      # em vez de só empacotar — assim toda tag v* vira a "Latest release" de
+      # verdade, que é o que o auto-updater (update-electron-app) checa nos
+      # apps já instalados. `make` sozinho só gerava um artifact do Actions,
+      # que não é visto pelo auto-updater e precisava ser baixado/enviado à mão.
+      - name: Build and publish .dmg
         # hdiutil detach falha de forma intermitente em runners macOS do
         # GitHub Actions (bug conhecido do electron-installer-dmg em CI) —
         # tenta de novo antes de desistir.
-        run: npm run make || npm run make
+        run: npm run publish || npm run publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload .dmg artifact
+        # Mantido como backup/diagnóstico mesmo já publicando a release.
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: allus-focus-mac
