@@ -7,6 +7,8 @@ import type {
   Profile,
   Project,
   Task,
+  TaskPriority,
+  TaskStatus,
   TeamMember,
   TimeReportPerson,
 } from './types';
@@ -32,6 +34,7 @@ export interface AppSnapshot {
   floatingPanelOpacity: number;
   floatingPanelSize: { width: number; height: number } | null;
   floatingPanelCompactSize: { width: number; height: number } | null;
+  floatingPanelPosition: { x: number; y: number } | null;
   floatingPanelIsCompactMode: boolean;
   floatingPanelSizeLocked: boolean;
   floatingPanelExpanded: boolean;
@@ -51,11 +54,15 @@ export interface IpcInvokeMap {
   'auth:signIn': (args: { email: string; password: string }) => { ok: true } | { ok: false; error: string };
   'auth:signOut': () => void;
   'auth:changePassword': (args: { newPassword: string }) => { ok: true } | { ok: false; error: string };
+  'auth:requestPasswordReset': (args: { email: string }) => { ok: true } | { ok: false; error: string };
+  'auth:confirmPasswordReset': (args: { email: string; code: string; newPassword: string }) => { ok: true } | { ok: false; error: string };
 
   'timer:playPause': () => void;
   'timer:pause': () => void;
   'timer:resume': () => void;
   'timer:stop': () => void;
+  'timer:skipToBreak': () => void;
+  'timer:skipToFocus': () => void;
   'timer:restart': (args: { sessionId: string }) => void;
   'timer:setMode': (args: { mode: PomoMode }) => void;
   'session:delete': (args: { sessionId: string }) => void;
@@ -67,14 +74,19 @@ export interface IpcInvokeMap {
 
   'project:add': (args: { clientName: string; projectName: string; type: string }) => void;
   'project:update': (args: { projectId: string; clientName: string; projectName: string; type: string }) => void;
-  'project:delete': (args: { projectId: string }) => void;
+  'project:archive': (args: { projectId: string }) => void;
+  'project:unarchive': (args: { projectId: string }) => void;
   'project:select': (args: { projectId: string | null }) => void;
-  'client:delete': (args: { clientId: string }) => void;
+  'client:archive': (args: { clientId: string }) => void;
+  'client:unarchive': (args: { clientId: string }) => void;
 
   'taskTree:add': (args: { projectId: string; parentTaskId: string | null; title: string }) => void;
   'taskTree:rename': (args: { taskId: string; title: string }) => void;
   'taskTree:toggleDone': (args: { taskId: string }) => void;
-  'taskTree:delete': (args: { taskId: string }) => void;
+  'taskTree:setStatus': (args: { taskId: string; status: TaskStatus }) => void;
+  'taskTree:setPriority': (args: { taskId: string; priority: TaskPriority }) => void;
+  'taskTree:archive': (args: { taskId: string }) => void;
+  'taskTree:unarchive': (args: { taskId: string }) => void;
   'taskTree:move': (args: { taskId: string; targetProjectId: string }) => void;
 
   'report:query': (args: { range: DateRangeFilter }) => TimeReportResult;
@@ -94,6 +106,8 @@ export interface IpcInvokeMap {
   'prefs:setFloatingPanelOpacity': (args: { opacity: number }) => void;
   'app:restartForUpdate': () => void;
   'prefs:setFloatingPanelSize': (args: { size: { width: number; height: number } | null }) => void;
+  'prefs:setFloatingPanelCompactSize': (args: { size: { width: number; height: number } | null }) => void;
+  'prefs:setFloatingPanelPosition': (args: { position: { x: number; y: number } | null }) => void;
   'prefs:setFloatingPanelSizeLocked': (args: { locked: boolean }) => void;
   'prefs:setFloatingPanelExpanded': (args: { expanded: boolean }) => void;
   'prefs:setFloatingPanelIsCompactMode': (args: { compact: boolean }) => void;

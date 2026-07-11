@@ -53,6 +53,23 @@ class AuthManager extends EventEmitter {
     return { ok: true };
   }
 
+  async requestPasswordReset(email: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) return { ok: false, error: traduzErro(error.message) };
+    return { ok: true };
+  }
+
+  // Troca o código OTP (recebido por e-mail) por uma sessão válida e já
+  // define a nova senha — evita depender de deep-link/protocolo customizado,
+  // que exigiria tratamento nativo separado no Windows e no macOS.
+  async confirmPasswordReset(email: string, code: string, newPassword: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' });
+    if (verifyError) return { ok: false, error: traduzErro(verifyError.message) };
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    if (updateError) return { ok: false, error: traduzErro(updateError.message) };
+    return { ok: true };
+  }
+
   async updateFullName(fullName: string): Promise<void> {
     if (this.state.status !== 'signedIn') return;
     const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', this.state.profile.id);
@@ -102,6 +119,7 @@ function traduzErro(message?: string): string {
   if (!message) return 'Não foi possível entrar. Tente novamente.';
   if (message.includes('Invalid login credentials')) return 'E-mail ou senha inválidos.';
   if (message.includes('Email not confirmed')) return 'E-mail ainda não confirmado.';
+  if (message.includes('Token has expired or is invalid')) return 'Código inválido ou expirado. Solicite um novo.';
   return message;
 }
 

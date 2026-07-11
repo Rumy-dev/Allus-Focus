@@ -17,18 +17,31 @@ function currentUserId(): string {
 
 export async function hydrateTaxonomy(): Promise<void> {
   const [clientsRes, projectsRes, tasksRes, profilesRes] = await Promise.all([
-    supabase.from('clients').select('id, name, created_by, created_at').order('name'),
-    supabase.from('projects').select('id, client_id, name, type, budget_hours, created_by, created_at').order('name'),
-    supabase.from('tasks').select('id, project_id, parent_task_id, title, is_done, created_by, created_at').order('created_at'),
+    supabase.from('clients').select('id, name, created_by, created_at, archived_at').order('name'),
+    supabase.from('projects').select('id, client_id, name, type, budget_hours, created_by, created_at, archived_at').order('name'),
+    supabase.from('tasks').select('id, project_id, parent_task_id, title, is_done, status, priority, created_by, created_at, archived_at').order('created_at'),
     supabase.from('profiles').select('id, full_name').order('full_name'),
   ]);
 
-  appStore.patch({
-    clients: (clientsRes.data ?? []).map(mapClient),
-    projects: (projectsRes.data ?? []).map(mapProject),
-    tasks: (tasksRes.data ?? []).map(mapTask),
-    profiles: (profilesRes.data ?? []).map(mapTeamMember),
-  });
+  // Nunca sobrescreve o que já está na tela com uma lista vazia por causa de
+  // um erro de consulta (ex: coluna nova ainda não existe no banco porque a
+  // migração não rodou) — melhor manter o último estado bom conhecido do que
+  // fazer a taxonomia inteira "sumir" da interface sem aviso.
+  const patch: Partial<{ clients: Client[]; projects: Project[]; tasks: Task[]; profiles: TeamMember[] }> = {};
+
+  if (clientsRes.error) console.error('[taskStore] falha ao carregar clients', clientsRes.error);
+  else patch.clients = (clientsRes.data ?? []).map(mapClient);
+
+  if (projectsRes.error) console.error('[taskStore] falha ao carregar projects', projectsRes.error);
+  else patch.projects = (projectsRes.data ?? []).map(mapProject);
+
+  if (tasksRes.error) console.error('[taskStore] falha ao carregar tasks', tasksRes.error);
+  else patch.tasks = (tasksRes.data ?? []).map(mapTask);
+
+  if (profilesRes.error) console.error('[taskStore] falha ao carregar profiles', profilesRes.error);
+  else patch.profiles = (profilesRes.data ?? []).map(mapTeamMember);
+
+  appStore.patch(patch);
 }
 
 export function subscribeRealtime(): void {
@@ -97,28 +110,50 @@ export async function updateProject(projectId: string, clientName: string, proje
   await hydrateTaxonomy();
 }
 
-export async function deleteProject(projectId: string): Promise<void> {
-  const { error } = await supabase.from('projects').delete().eq('id', projectId);
+// Arquivar em vez de apagar de verdade — preserva o histórico de
+// relatórios/sessões que já referenciam o projeto (ver seção 4 do handoff
+// original sobre risco de perda de dados históricos ao excluir taxonomia).
+export async function archiveProject(projectId: string): Promise<void> {
+  const { error } = await supabase.from('projects').update({ archived_at: new Date().toISOString() }).eq('id', projectId);
   if (error) throw new Error(error.message);
   await hydrateTaxonomy();
-  const remaining = appStore.getSnapshot().projects.filter((p) => p.id !== projectId);
+  const remaining = appStore.getSnapshot().projects.filter((p) => p.id !== projectId && !p.archivedAt);
   if (appStore.getSnapshot().selectedProjectId === projectId) {
     appStore.patch({ selectedProjectId: remaining[0]?.id ?? null });
   }
 }
 
-export async function deleteClient(clientId: string): Promise<void> {
-  const snapshot = appStore.getSnapshot();
-  const clientProjects = snapshot.projects.filter((p) => p.clientId === clientId);
+export async function unarchiveProject(projectId: string): Promise<void> {
+  const { error } = await supabase.from('projects').update({ archived_at: null }).eq('id', projectId);
+  if (error) throw new Error(error.message);
+  await hydrateTaxonomy();
+}
 
-  // Deleta todos os projetos do cliente primeiro (por causa das dependências)
+export async function archiveClient(clientId: string): Promise<void> {
+  const snapshot = appStore.getSnapshot();
+  const clientProjects = snapshot.projects.filter((p) => p.clientId === clientId && !p.archivedAt);
+
+  // Arquiva todos os projetos ativos do cliente também (cascata, mesmo
+  // padrão que a exclusão em cascata usava antes).
   for (const project of clientProjects) {
-    await deleteProject(project.id);
+    await archiveProject(project.id);
   }
 
-  // Agora deleta o cliente
-  const { error } = await supabase.from('clients').delete().eq('id', clientId);
+  const { error } = await supabase.from('clients').update({ archived_at: new Date().toISOString() }).eq('id', clientId);
   if (error) throw new Error(error.message);
+  await hydrateTaxonomy();
+}
+
+export async function unarchiveClient(clientId: string): Promise<void> {
+  const { error } = await supabase.from('clients').update({ archived_at: null }).eq('id', clientId);
+  if (error) throw new Error(error.message);
+  // Restaura junto os projetos desse cliente que foram arquivados na cascata
+  // do archiveClient (não mexe em projetos que já estavam arquivados antes).
+  const { error: projectsError } = await supabase
+    .from('projects')
+    .update({ archived_at: null })
+    .eq('client_id', clientId);
+  if (projectsError) throw new Error(projectsError.message);
   await hydrateTaxonomy();
 }
 
@@ -127,7 +162,7 @@ export async function addTaskNode(projectId: string, parentTaskId: string | null
   const { data, error } = await supabase
     .from('tasks')
     .insert({ project_id: projectId, parent_task_id: parentTaskId, title: title.trim(), created_by: userId })
-    .select('id, project_id, parent_task_id, title, is_done, created_by, created_at')
+    .select('id, project_id, parent_task_id, title, is_done, status, priority, created_by, created_at, archived_at')
     .single();
   if (error || !data) throw new Error(error?.message ?? 'Falha ao criar tarefa.');
   await hydrateTaxonomy();
@@ -154,8 +189,32 @@ export async function setTaskNodeDone(taskId: string, isDone: boolean): Promise<
   await hydrateTaxonomy();
 }
 
-export async function deleteTaskNode(taskId: string): Promise<void> {
-  const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+// Status substitui o antigo checkbox binário — "Concluído" mantém is_done em
+// sincronia pra não quebrar o fluxo do timer (task:toggleDone/PomoTaskLog
+// continuam lendo is_done normalmente).
+export async function setTaskStatus(taskId: string, status: Task['status']): Promise<void> {
+  const { error } = await supabase
+    .from('tasks')
+    .update({ status, is_done: status === 'Concluído' })
+    .eq('id', taskId);
+  if (error) throw new Error(error.message);
+  await hydrateTaxonomy();
+}
+
+export async function setTaskPriority(taskId: string, priority: Task['priority']): Promise<void> {
+  const { error } = await supabase.from('tasks').update({ priority }).eq('id', taskId);
+  if (error) throw new Error(error.message);
+  await hydrateTaxonomy();
+}
+
+export async function archiveTaskNode(taskId: string): Promise<void> {
+  const { error } = await supabase.from('tasks').update({ archived_at: new Date().toISOString() }).eq('id', taskId);
+  if (error) throw new Error(error.message);
+  await hydrateTaxonomy();
+}
+
+export async function unarchiveTaskNode(taskId: string): Promise<void> {
+  const { error } = await supabase.from('tasks').update({ archived_at: null }).eq('id', taskId);
   if (error) throw new Error(error.message);
   await hydrateTaxonomy();
 }
@@ -172,7 +231,13 @@ export async function moveTaskNode(taskId: string, targetProjectId: string): Pro
 }
 
 function mapClient(row: any): Client {
-  return { id: row.id, name: row.name, createdBy: row.created_by, createdAt: row.created_at };
+  return {
+    id: row.id,
+    name: row.name,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    archivedAt: row.archived_at ?? null,
+  };
 }
 
 function mapTeamMember(row: any): TeamMember {
@@ -188,6 +253,7 @@ function mapProject(row: any): Project {
     budgetHours: row.budget_hours ?? null,
     createdBy: row.created_by,
     createdAt: row.created_at,
+    archivedAt: row.archived_at ?? null,
   };
 }
 
@@ -198,7 +264,10 @@ function mapTask(row: any): Task {
     parentTaskId: row.parent_task_id,
     title: row.title,
     isDone: row.is_done,
+    status: row.status ?? 'Pendente',
+    priority: row.priority ?? 'Média',
     createdBy: row.created_by,
     createdAt: row.created_at,
+    archivedAt: row.archived_at ?? null,
   };
 }

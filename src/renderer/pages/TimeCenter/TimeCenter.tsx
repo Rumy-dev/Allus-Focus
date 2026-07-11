@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import allusWatermark from '../../assets/allus-focus-watermark.svg';
 import { useAppState } from '../../useAppState';
@@ -10,15 +10,55 @@ import { useDataRefreshKey } from '../../useDataRefreshKey';
 import { formatDuration } from '../../../shared/types';
 import type { DateRangeFilter, SessionDateFilter, TimeReportPerson } from '../../../shared/types';
 
+function previousRange(filter: SessionDateFilter): DateRangeFilter | null {
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
+  const endOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).toISOString();
+
+  if (filter === 'Hoje') {
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    return { filter: 'Intervalo', start: startOfDay(y), end: endOfDay(y) };
+  }
+  if (filter === '7 dias') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 13);
+    const end = new Date(now);
+    end.setDate(end.getDate() - 7);
+    return { filter: 'Intervalo', start: startOfDay(start), end: endOfDay(end) };
+  }
+  if (filter === 'Mês') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    return { filter: 'Intervalo', start: start.toISOString(), end: end.toISOString() };
+  }
+  return null; // sem comparação sensata pra "Todas"/"Ontem"/"Intervalo" custom
+}
+
+function daysInFilter(filter: SessionDateFilter): number {
+  if (filter === 'Hoje' || filter === 'Ontem') return 1;
+  if (filter === '7 dias') return 7;
+  if (filter === 'Mês') return new Date().getDate();
+  return 1;
+}
+
 export function TimeCenter() {
   const snapshot = useAppState();
   const [filter, setFilter] = useState<SessionDateFilter>('Hoje');
   const [people, setPeople] = useState<TimeReportPerson[]>([]);
   const [total, setTotal] = useState(0);
+  const [prevTotal, setPrevTotal] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [personFilter, setPersonFilter] = useState<string>('');
+  const [clientFilter, setClientFilter] = useState<string>('');
+  const [projectFilter, setProjectFilter] = useState<string>('');
+  const [manualRefreshTick, setManualRefreshTick] = useState(0);
 
   const range: DateRangeFilter = { filter };
+  // A tela não escuta mudanças de sessions/task_logs de outras pessoas em
+  // tempo real (só reage a mudanças na sua própria sessão/taxonomia local) —
+  // por isso o botão "Atualizar" abaixo força um novo fetch manual.
   const refreshKey = useDataRefreshKey(snapshot);
 
   useEffect(() => {
@@ -44,7 +84,27 @@ export function TimeCenter() {
     return () => {
       cancelled = true;
     };
-  }, [filter, refreshKey]);
+  }, [filter, refreshKey, manualRefreshTick]);
+
+  useEffect(() => {
+    const prev = previousRange(filter);
+    if (!prev) {
+      setPrevTotal(null);
+      return;
+    }
+    let cancelled = false;
+    window.allus
+      .invoke('report:query', { range: prev })
+      .then((result) => {
+        if (!cancelled) setPrevTotal(result.totalSeconds);
+      })
+      .catch(() => {
+        if (!cancelled) setPrevTotal(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filter, refreshKey, manualRefreshTick]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -65,7 +125,7 @@ export function TimeCenter() {
 
   function expandAll() {
     const ids = new Set<string>();
-    for (const person of people) {
+    for (const person of filteredPeople) {
       ids.add(`p:${person.userId}`);
       for (const client of person.clients) {
         ids.add(`c:${client.id}`);
@@ -82,6 +142,55 @@ export function TimeCenter() {
     await invokeAction('report:exportCsv', { range });
   }
 
+  // Filtros client-side sobre a árvore já carregada — não dispara IPC novo.
+  const filteredPeople = useMemo(() => {
+    return people
+      .filter((p) => !personFilter || p.userId === personFilter)
+      .map((p) => ({
+        ...p,
+        clients: p.clients
+          .filter((c) => !clientFilter || c.id === clientFilter)
+          .map((c) => ({
+            ...c,
+            projects: c.projects.filter((pr) => !projectFilter || pr.id === projectFilter),
+          }))
+          .filter((c) => c.projects.length > 0),
+      }))
+      .filter((p) => p.clients.length > 0);
+  }, [people, personFilter, clientFilter, projectFilter]);
+
+  const filteredTotal = useMemo(() => {
+    if (!personFilter && !clientFilter && !projectFilter) return total;
+    return filteredPeople.reduce(
+      (sum, p) => sum + p.clients.reduce((s2, c) => s2 + c.projects.reduce((s3, pr) => s3 + pr.totalSeconds, 0), 0),
+      0,
+    );
+  }, [filteredPeople, personFilter, clientFilter, projectFilter, total]);
+
+  const clientOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of people) {
+      if (personFilter && p.userId !== personFilter) continue;
+      for (const c of p.clients) map.set(c.id, c.clientName);
+    }
+    return Array.from(map.entries());
+  }, [people, personFilter]);
+
+  const projectOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of people) {
+      if (personFilter && p.userId !== personFilter) continue;
+      for (const c of p.clients) {
+        if (clientFilter && c.id !== clientFilter) continue;
+        for (const pr of c.projects) map.set(pr.id, pr.projectName);
+      }
+    }
+    return Array.from(map.entries());
+  }, [people, personFilter, clientFilter]);
+
+  const avgPerDay = filteredTotal / daysInFilter(filter);
+  const deltaPct = prevTotal !== null && prevTotal > 0 ? ((filteredTotal - prevTotal) / prevTotal) * 100 : null;
+
   return (
     <div
       className="allus-app-bg allus-watermark"
@@ -96,11 +205,25 @@ export function TimeCenter() {
     >
       <Titlebar title="CENTRAL DE TEMPOS · Tempo acumulado por pessoa/tarefa" />
       <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--allus-yellow)', fontFamily: 'var(--allus-font-mono)' }}>
-            {formatDuration(total)}
-          </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <SummaryCard label="Total no período" value={formatDuration(filteredTotal)} />
+          <SummaryCard label="Média por dia" value={formatDuration(Math.round(avgPerDay))} />
+          <SummaryCard
+            label="Vs. período anterior"
+            value={deltaPct === null ? '—' : `${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(0)}%`}
+            valueColor={deltaPct === null ? undefined : deltaPct >= 0 ? 'var(--allus-status-concluido)' : 'var(--allus-status-interrompido)'}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: 1 }} />
+          <button
+            style={pillButtonStyle}
+            onClick={() => setManualRefreshTick((t) => t + 1)}
+            title="Recarrega os dados agora — a tela não atualiza sozinha quando outra pessoa registra horas"
+          >
+            ↻ Atualizar
+          </button>
           <button style={pillButtonStyle} onClick={expandAll}>Expandir tudo</button>
           <button style={pillButtonStyle} onClick={() => setExpanded(new Set())}>Recolher tudo</button>
           <button style={pillButtonStyle} onClick={handleExport} disabled={people.length === 0}>
@@ -109,6 +232,62 @@ export function TimeCenter() {
         </div>
 
         <DateFilterBar value={filter} onChange={setFilter} />
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {people.length > 1 && (
+            <select
+              value={personFilter}
+              onChange={(e) => {
+                setPersonFilter(e.target.value);
+                setClientFilter('');
+                setProjectFilter('');
+              }}
+              style={filterSelectStyle}
+            >
+              <option value="">Todas as pessoas</option>
+              {people.map((p) => (
+                <option key={p.userId} value={p.userId}>{p.fullName}</option>
+              ))}
+            </select>
+          )}
+          <select
+            value={clientFilter}
+            onChange={(e) => {
+              setClientFilter(e.target.value);
+              setProjectFilter('');
+            }}
+            style={filterSelectStyle}
+            disabled={clientOptions.length === 0}
+          >
+            <option value="">Todos os clientes</option>
+            {clientOptions.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+          <select
+            value={projectFilter}
+            onChange={(e) => setProjectFilter(e.target.value)}
+            style={filterSelectStyle}
+            disabled={projectOptions.length === 0}
+          >
+            <option value="">Todos os projetos</option>
+            {projectOptions.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+          {(personFilter || clientFilter || projectFilter) && (
+            <button
+              style={pillButtonStyle}
+              onClick={() => {
+                setPersonFilter('');
+                setClientFilter('');
+                setProjectFilter('');
+              }}
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
 
         <div
           style={{
@@ -126,15 +305,19 @@ export function TimeCenter() {
 
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {loading && <div style={{ fontSize: 13, color: 'var(--allus-text-muted)' }}>Carregando...</div>}
-          {!loading && people.length === 0 && (
-            <div style={{ fontSize: 13, color: 'var(--allus-text-muted)' }}>Nenhuma tarefa registrada neste período.</div>
+          {!loading && filteredPeople.length === 0 && (
+            <div style={{ fontSize: 13, color: 'var(--allus-text-muted)' }}>
+              {people.length === 0 ? 'Nenhuma tarefa registrada neste período.' : 'Nenhum resultado para esses filtros.'}
+            </div>
           )}
-          {people.map((person) => (
+          {filteredPeople.map((person) => (
             <div key={person.userId}>
               <ReportRow
                 label={person.fullName}
                 color="var(--allus-yellow-deep)"
-                seconds={person.totalSeconds}
+                seconds={
+                  person.clients.reduce((s, c) => s + c.projects.reduce((s2, p) => s2 + p.totalSeconds, 0), 0)
+                }
                 expandable
                 expanded={expanded.has(`p:${person.userId}`)}
                 onToggle={() => toggle(`p:${person.userId}`)}
@@ -145,7 +328,7 @@ export function TimeCenter() {
                     <ReportRow
                       label={client.clientName}
                       color="var(--allus-white)"
-                      seconds={client.totalSeconds}
+                      seconds={client.projects.reduce((s, p) => s + p.totalSeconds, 0)}
                       expandable
                       expanded={expanded.has(`c:${client.id}`)}
                       onToggle={() => toggle(`c:${client.id}`)}
@@ -193,6 +376,36 @@ export function TimeCenter() {
         </div>
       </div>
       <ToastHost />
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 140,
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid var(--allus-glass-border)',
+        borderRadius: 12,
+        padding: '10px 14px',
+      }}
+    >
+      <div style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--allus-text-muted)' }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 22,
+          fontWeight: 700,
+          fontFamily: 'var(--allus-font-mono)',
+          color: valueColor ?? 'var(--allus-yellow)',
+          marginTop: 2,
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -248,4 +461,13 @@ const pillButtonStyle: React.CSSProperties = {
   color: 'var(--allus-text-primary)',
   fontSize: 12,
   whiteSpace: 'nowrap',
+};
+
+const filterSelectStyle: React.CSSProperties = {
+  padding: '6px 10px',
+  borderRadius: 8,
+  border: '1px solid var(--allus-glass-border)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--allus-text-primary)',
+  fontSize: 12,
 };

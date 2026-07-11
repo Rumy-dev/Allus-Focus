@@ -30,11 +30,17 @@ export function registerIpcHandlers(): void {
     await authManager.signOut();
   });
   handle('auth:changePassword', async ({ newPassword }) => authManager.changePassword(newPassword));
+  handle('auth:requestPasswordReset', async ({ email }) => authManager.requestPasswordReset(email));
+  handle('auth:confirmPasswordReset', async ({ email, code, newPassword }) =>
+    authManager.confirmPasswordReset(email, code, newPassword),
+  );
 
   handle('timer:playPause', async () => timerEngine.playPause());
   handle('timer:pause', async () => timerEngine.pause());
   handle('timer:resume', async () => timerEngine.resume());
   handle('timer:stop', async () => timerEngine.stop());
+  handle('timer:skipToBreak', async () => timerEngine.skipToBreak());
+  handle('timer:skipToFocus', async () => timerEngine.skipToFocus());
   handle('timer:restart', async ({ sessionId }) => timerEngine.restart(sessionId));
   handle('timer:setMode', async ({ mode }) => timerEngine.setMode(mode));
   handle('session:delete', async ({ sessionId }) => timerEngine.deleteSession(sessionId));
@@ -51,30 +57,43 @@ export function registerIpcHandlers(): void {
   });
   handle('task:deleteLog', async ({ taskLogId }) => timerEngine.deleteTaskLog(taskLogId));
 
-  handle('project:add', async ({ clientName, projectName }) => taskStore.addProject(clientName, projectName));
-  handle('project:update', async ({ projectId, clientName, projectName }) =>
-    taskStore.updateProject(projectId, clientName, projectName),
+  handle('project:add', async ({ clientName, projectName, type }) => taskStore.addProject(clientName, projectName, type));
+  handle('project:update', async ({ projectId, clientName, projectName, type }) =>
+    taskStore.updateProject(projectId, clientName, projectName, type),
   );
-  handle('project:delete', async ({ projectId }) => taskStore.deleteProject(projectId));
+  handle('project:archive', async ({ projectId }) => taskStore.archiveProject(projectId));
+  handle('project:unarchive', async ({ projectId }) => taskStore.unarchiveProject(projectId));
   handle('project:select', async ({ projectId }) => {
     savePrefs({ selectedProjectId: projectId });
     appStore.patch({ selectedProjectId: projectId });
   });
-  handle('client:delete', async ({ clientId }) => taskStore.deleteClient(clientId));
+  handle('client:archive', async ({ clientId }) => taskStore.archiveClient(clientId));
+  handle('client:unarchive', async ({ clientId }) => taskStore.unarchiveClient(clientId));
 
   handle('taskTree:add', async ({ projectId, parentTaskId, title }) => {
     await taskStore.addTaskNode(projectId, parentTaskId, title);
   });
   handle('taskTree:rename', async ({ taskId, title }) => taskStore.renameTaskNode(taskId, title));
   handle('taskTree:toggleDone', async ({ taskId }) => taskStore.toggleTaskNodeDone(taskId));
-  handle('taskTree:delete', async ({ taskId }) => taskStore.deleteTaskNode(taskId));
+  handle('taskTree:setStatus', async ({ taskId, status }) => taskStore.setTaskStatus(taskId, status));
+  handle('taskTree:setPriority', async ({ taskId, priority }) => taskStore.setTaskPriority(taskId, priority));
+  handle('taskTree:archive', async ({ taskId }) => taskStore.archiveTaskNode(taskId));
+  handle('taskTree:unarchive', async ({ taskId }) => taskStore.unarchiveTaskNode(taskId));
   handle('taskTree:move', async ({ taskId, targetProjectId }) => taskStore.moveTaskNode(taskId, targetProjectId));
 
-  handle('report:query', async ({ range }) => reportBuilder.queryReport(range));
-  handle('report:exportCsv', async ({ range }) => reportBuilder.exportCsv(range));
-  handle('session:list', async ({ range }) => reportBuilder.querySessions(range));
+  // Fora do Allus Pulse, só admin vê horas de outras pessoas — usuário comum
+  // fica restrito às próprias horas (mesma regra em Central de Tempos e Dashboard).
+  function ownUserIdIfNotAdmin(): string | undefined {
+    const state = authManager.getState();
+    if (state.status !== 'signedIn') throw new Error('Não autenticado.');
+    return state.profile.role === 'admin' ? undefined : state.profile.id;
+  }
+
+  handle('report:query', async ({ range }) => reportBuilder.queryReport(range, ownUserIdIfNotAdmin()));
+  handle('report:exportCsv', async ({ range }) => reportBuilder.exportCsv(range, ownUserIdIfNotAdmin()));
+  handle('session:list', async ({ range }) => reportBuilder.querySessions(range, ownUserIdIfNotAdmin()));
   handle('dashboard:trend', async ({ range, clientId, projectId, userId }) =>
-    reportBuilder.queryTrend(range, { clientId, projectId, userId }),
+    reportBuilder.queryTrend(range, { clientId, projectId, userId: ownUserIdIfNotAdmin() ?? userId }),
   );
 
   handle('pulse:query', async () => {
@@ -104,6 +123,14 @@ export function registerIpcHandlers(): void {
   handle('prefs:setFloatingPanelSize', async ({ size }) => {
     await authManager.updatePreferences({ floatingPanelSize: size });
     appStore.patch({ floatingPanelSize: size });
+  });
+  handle('prefs:setFloatingPanelCompactSize', async ({ size }) => {
+    await authManager.updatePreferences({ floatingPanelCompactSize: size });
+    appStore.patch({ floatingPanelCompactSize: size });
+  });
+  handle('prefs:setFloatingPanelPosition', async ({ position }) => {
+    await authManager.updatePreferences({ floatingPanelPosition: position });
+    appStore.patch({ floatingPanelPosition: position });
   });
   handle('prefs:setFloatingPanelSizeLocked', async ({ locked }) => {
     await authManager.updatePreferences({ floatingPanelSizeLocked: locked });
@@ -138,7 +165,6 @@ export function registerIpcHandlers(): void {
   handle('window:openPulse', async () => windowManager.showPulse());
   handle('window:openMain', async () => windowManager.showMainWindow());
   handle('window:openFloating', async () => {
-    windowManager.resetFloatingPanelToNormal();
     windowManager.showFloatingPanel();
   });
 
@@ -152,7 +178,12 @@ export function registerIpcHandlers(): void {
   });
   ipcMain.handle('window:closeSelf', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    if (win) {
+    if (!win) return;
+    // Painel flutuante tem fade próprio (windowManager.hideFloatingPanel) —
+    // as demais janelas só escondem direto.
+    if (win === windowManager.getFloatingWindow()) {
+      windowManager.hideFloatingPanel();
+    } else {
       win.hide();
     }
   });
@@ -175,7 +206,7 @@ export function registerIpcHandlers(): void {
       const bounds = win.getBounds();
       win.setBounds({
         ...bounds,
-        width: width !== undefined ? Math.min(Math.max(width, 200), 700) : bounds.width,
+        width: width !== undefined ? Math.min(Math.max(width, 170), 700) : bounds.width,
         height: height !== undefined ? Math.min(Math.max(height, 50), 700) : bounds.height,
       });
     }

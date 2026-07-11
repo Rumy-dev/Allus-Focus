@@ -407,6 +407,44 @@ export async function completeSession(): Promise<void> {
   }
 }
 
+// Encerra o bloco de foco atual como Interrompido e emenda direto na pausa,
+// carregando a tarefa ativa pro próximo foco (mesmo carry-over do fluxo
+// natural de completeSession).
+export async function skipToBreak(): Promise<void> {
+  const state = appStore.getSnapshot();
+  const session = state.activeSession;
+  if (!session || session.cycleKind !== 'Foco') return;
+  stopTicker();
+  const active = state.activeTaskLogs.find((l) => l.id === session.activeTaskLogId) ?? state.activeTaskLogs[state.activeTaskLogs.length - 1];
+  if (active) pendingCarryOverTitle = { taskId: active.taskId, subtaskId: null, title: active.taskTitle };
+
+  const interrupted = { ...session, status: 'Interrompido' as const, endedAt: new Date().toISOString(), activeTaskLogId: null };
+  await persistSession(interrupted);
+
+  const breakSession = await insertSession({
+    mode: session.mode,
+    cycleKind: 'Pausa',
+    plannedSeconds: POMO_MODES[session.mode].breakSeconds,
+    status: 'Ativo',
+    task: `Pausa - ${POMO_MODES[session.mode].title}`,
+  });
+  appStore.patch({ activeSession: breakSession, activeTaskLogs: [] });
+  startTicker();
+}
+
+// Encerra a pausa atual como Interrompido sem iniciar foco automaticamente —
+// deixa o usuário escolher a próxima tarefa.
+export async function skipToFocus(): Promise<void> {
+  const state = appStore.getSnapshot();
+  const session = state.activeSession;
+  if (!session || session.cycleKind !== 'Pausa') return;
+  stopTicker();
+  const interrupted = { ...session, status: 'Interrompido' as const, endedAt: new Date().toISOString() };
+  await persistSession(interrupted);
+
+  appStore.patch({ activeSession: null });
+}
+
 export async function restart(sessionId: string): Promise<void> {
   const { data } = await supabase.from('sessions').select('mode').eq('id', sessionId).single();
   const mode = (data?.mode as PomoMode) ?? appStore.getSnapshot().selectedMode;
@@ -514,7 +552,12 @@ export async function quickAdd(title: string, avulsa: boolean): Promise<void> {
     return;
   }
 
-  const targetProjectId = state.selectedProjectId ?? state.projects[0]?.id ?? AVULSO_PROJECT_ID;
+  // Se o projeto selecionado foi arquivado nesse meio tempo, cai pro
+  // primeiro projeto ativo em vez de criar tarefa num projeto arquivado.
+  const selectedIsActive = state.projects.some((p) => p.id === state.selectedProjectId && !p.archivedAt);
+  const targetProjectId = selectedIsActive
+    ? state.selectedProjectId!
+    : state.projects.find((p) => !p.archivedAt)?.id ?? AVULSO_PROJECT_ID;
   const task = await taskStore.addTaskNode(targetProjectId, null, trimmed);
   await focusTask(task.id, null, task.title);
 }
@@ -622,11 +665,17 @@ export async function loadMostUsedTasks(): Promise<void> {
       return;
     }
 
+    // Tarefas arquivadas não entram como atalho de retomada rápida — mas
+    // continuam intactas nos logs/relatórios já existentes.
+    const archivedTaskIds = new Set(
+      appStore.getSnapshot().tasks.filter((t) => t.archivedAt).map((t) => t.id),
+    );
+
     const seen = new Set<string>();
     const recent: PomoTaskLog[] = [];
     for (const log of allLogs) {
       const tid = log.task_id;
-      if (!tid || seen.has(tid)) continue;
+      if (!tid || seen.has(tid) || archivedTaskIds.has(tid)) continue;
       seen.add(tid);
       recent.push(mapTaskLog(log));
       if (recent.length >= 3) break;

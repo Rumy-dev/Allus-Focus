@@ -15,6 +15,7 @@ export function Pulse() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAllBudgets, setShowAllBudgets] = useState(false);
 
   const loadPulse = async () => {
     try {
@@ -201,15 +202,75 @@ export function Pulse() {
           </div>
         </div>
 
+        {/* RANKING DE HORAS DO TIME (hoje) */}
+        {pulse.teamMembers.some((m) => m.todayTotalSeconds > 0) && (
+          <div className="allus-glass" style={{ padding: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--allus-text-muted)', marginBottom: 12 }}>
+              RANKING DE HORAS (HOJE)
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[...pulse.teamMembers]
+                .filter((m) => m.todayTotalSeconds > 0)
+                .sort((a, b) => b.todayTotalSeconds - a.todayTotalSeconds)
+                .map((member, idx) => {
+                  const max = Math.max(...pulse.teamMembers.map((m) => m.todayTotalSeconds), 1);
+                  const pct = Math.round((member.todayTotalSeconds / max) * 100);
+                  return (
+                    <div key={member.userId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 16, fontSize: 11, color: 'var(--allus-text-muted)', fontFamily: 'var(--allus-font-mono)' }}>
+                        {idx + 1}º
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
+                          <span style={{ color: 'var(--allus-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {member.fullName}
+                          </span>
+                          <span style={{ color: 'var(--allus-yellow)', fontFamily: 'var(--allus-font-mono)', marginLeft: 8 }}>
+                            {formatDuration(member.todayTotalSeconds)}
+                          </span>
+                        </div>
+                        <div style={{ width: '100%', height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: 'var(--allus-gradient)' }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
         {/* Grid de Radar + Insights */}
         {(pulse.projectBudgets.length > 0 || pulse.insights.unclassifiedSeconds > 0 || noFocusMemberIds.length > 0) && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
             {/* RADAR DE ORÇAMENTO */}
             {pulse.projectBudgets.length > 0 && (
-              <div className="allus-glass" style={{ padding: 16, cursor: 'pointer' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--allus-text-muted)', marginBottom: 12 }}>RADAR DE PROJETOS</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {pulse.projectBudgets.slice(0, 3).map((proj) => (
+              <div className="allus-glass" style={{ padding: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--allus-text-muted)' }}>
+                    RADAR DE PROJETOS ({pulse.projectBudgets.length})
+                  </div>
+                  {pulse.projectBudgets.length > 3 && (
+                    <button
+                      onClick={() => setShowAllBudgets((v) => !v)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--allus-yellow)',
+                        fontSize: 10,
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      {showAllBudgets ? 'Ver menos' : 'Ver todos'}
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: showAllBudgets ? 320 : 'none', overflowY: showAllBudgets ? 'auto' : 'visible' }}>
+                  {[...pulse.projectBudgets]
+                    .sort((a, b) => b.pct - a.pct)
+                    .slice(0, showAllBudgets ? undefined : 3)
+                    .map((proj) => (
                     <div
                       key={proj.projectId}
                       onClick={() => {
@@ -225,6 +286,7 @@ export function Pulse() {
                         gap: 8,
                         padding: 6,
                         borderRadius: 4,
+                        cursor: 'pointer',
                         transition: 'background 0.2s ease',
                       }}
                       onMouseEnter={(e) => {

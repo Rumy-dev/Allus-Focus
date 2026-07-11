@@ -39,13 +39,14 @@ function rangeToBounds(range: DateRangeFilter): { start: string | null; end: str
   }
 }
 
-export async function queryReport(range: DateRangeFilter): Promise<TimeReportResult> {
+export async function queryReport(range: DateRangeFilter, onlyUserId?: string): Promise<TimeReportResult> {
   const { start, end } = rangeToBounds(range);
   let query = supabase
     .from('task_logs')
     .select('*, profiles(full_name), clients(name), projects(name), tasks(title, parent_task_id)');
   if (start) query = query.gte('started_at', start);
   if (end) query = query.lte('started_at', end);
+  if (onlyUserId) query = query.eq('user_id', onlyUserId);
 
   const { data, error } = await query;
   if (error) throw new Error(error.message);
@@ -117,11 +118,12 @@ export async function queryReport(range: DateRangeFilter): Promise<TimeReportRes
   return { people: Array.from(peopleMap.values()), totalSeconds };
 }
 
-export async function querySessions(range: DateRangeFilter): Promise<PomoSession[]> {
+export async function querySessions(range: DateRangeFilter, onlyUserId?: string): Promise<PomoSession[]> {
   const { start, end } = rangeToBounds(range);
   let query = supabase.from('sessions').select('*').order('started_at', { ascending: false });
   if (start) query = query.gte('started_at', start);
   if (end) query = query.lte('started_at', end);
+  if (onlyUserId) query = query.eq('user_id', onlyUserId);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data ?? []).map(mapSession);
@@ -175,8 +177,8 @@ export async function queryTrend(
   }));
 }
 
-export async function exportCsv(range: DateRangeFilter): Promise<{ path: string } | { error: string }> {
-  const report = await queryReport(range);
+export async function exportCsv(range: DateRangeFilter, onlyUserId?: string): Promise<{ path: string } | { error: string }> {
+  const report = await queryReport(range, onlyUserId);
   const lines = ['Cliente,Projeto,Tarefa,Subtarefa,Sessões,Tempo (s),Tempo Formatado'];
 
   for (const person of report.people) {

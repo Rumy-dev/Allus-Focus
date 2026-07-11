@@ -6,7 +6,6 @@ import { invokeAction } from '../../invoke';
 import { ToastHost } from '../../components/ToastHost';
 import { TaskModeSelector } from '../../components/TaskModeSelector';
 import { ProjectPicker } from '../../components/ProjectPicker';
-import { Tooltip } from '../../components/Tooltip';
 
 export function FloatingPanel() {
   const snapshot = useAppState();
@@ -101,12 +100,17 @@ export function FloatingPanel() {
 
       // Sem modal: tamanho segue o conteúdo real do painel (mini, recolhido
       // ou expandido — a altura varia conforme o modo e as 0-3 últimas
-      // tarefas). Se o usuário já redimensionou manualmente, respeita o
-      // tamanho customizado.
-      if (snapshot?.floatingPanelSize !== null) return;
+      // tarefas). Se o usuário já redimensionou manualmente ESSE modo
+      // específico (mini/expandido têm slots de tamanho separados), respeita
+      // o tamanho customizado.
+      const savedModeSize = isMini ? snapshot?.floatingPanelCompactSize : snapshot?.floatingPanelSize;
+      if (savedModeSize !== null && savedModeSize !== undefined) {
+        applySize(savedModeSize.width, savedModeSize.height);
+        return;
+      }
       const el = contentRef.current;
       if (!el) return;
-      const width = isMini ? 190 : 300;
+      const width = isMini ? 260 : 300;
       const height = Math.min(el.scrollHeight + (isMini ? 24 : 48), window.screen.availHeight * 0.85);
       applySize(width, height);
     };
@@ -126,8 +130,12 @@ export function FloatingPanel() {
     if (observed.length === 0) {
       // Sem modais: acompanha o crescimento/encolhimento do conteúdo do
       // painel (compacto ou expandido), a menos que o usuário já tenha
-      // redimensionado manualmente.
-      if (snapshot?.floatingPanelSize !== null) return;
+      // redimensionado manualmente esse modo específico.
+      const savedModeSizeGuard = isMini ? snapshot?.floatingPanelCompactSize : snapshot?.floatingPanelSize;
+      if (savedModeSizeGuard !== null && savedModeSizeGuard !== undefined) {
+        applySize(savedModeSizeGuard.width, savedModeSizeGuard.height);
+        return;
+      }
       const el = contentRef.current;
       if (!el) {
         measure();
@@ -171,6 +179,9 @@ export function FloatingPanel() {
   // Últimas 3 tarefas trabalhadas, excluindo a que já está em foco agora
   // (não faz sentido oferecer "retomar" a própria tarefa ativa).
   const switchableRecentTasks = snapshot.recentTasks.filter((t) => t.taskId !== activeLog?.taskId).slice(0, 3);
+  // No HUD compacto, a tarefa ativa já ocupa a 1ª posição da lista (destacada),
+  // então só sobram 2 vagas pras recentes, pra manter o total em 3 itens.
+  const hudSwitchableTasks = switchableRecentTasks.slice(0, 2);
 
   const destinoProject = snapshot.projects.find((p) => p.id === snapshot.selectedProjectId);
   const destinoClient = destinoProject ? snapshot.clients.find((c) => c.id === destinoProject.clientId) : null;
@@ -256,92 +267,97 @@ export function FloatingPanel() {
       <div ref={contentRef} style={{ display: 'flex', flexDirection: 'column', gap: isMini ? 6 : 'var(--allus-space-4)', flex: 1, overflowY: 'auto' }}>
       {isMini ? (
         <>
-          {/* Alça de arraste + status + botão pra abrir o painel completo */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-            <div className="allus-drag" style={{ width: '4px', height: '14px', cursor: 'grab', flexShrink: 0, borderRadius: 2, background: `rgba(255,255,255,${borderOpacity * 0.2})` }} title="Arrastar painel" />
-            <span className="allus-status-dot" data-status={statusDotStatus} style={{ width: 6, height: 6, borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />
-            <div style={{ flex: 1 }} />
-            <Tooltip text="Abrir painel completo">
-              <button className="allus-no-drag" onClick={toggleMini} style={{ ...miniIconBtn, width: 18, height: 18, fontSize: 10 }}>
-                ⤢
-              </button>
-            </Tooltip>
-          </div>
-
-          {/* Relógio pequeno */}
-          <div
-            style={{
-              fontFamily: 'var(--allus-font-mono)',
-              fontSize: 20,
-              fontWeight: 700,
-              color: session ? alertColor : 'var(--allus-text-muted)',
-              letterSpacing: '-0.3px',
-              textAlign: 'center',
-            }}
-          >
-            {session ? formatDuration(remaining) : '–'}
-          </div>
-
-          {/* Tarefa atual, se houver — uma linha só */}
-          {session && (
+          {/* HUD horizontal compacto: cronômetro (esquerda) + botões circulares (direita) — sem texto de tarefa aqui, pra não esticar a janela na horizontal */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            {/* Cronômetro — maior elemento da tela, nunca encolhe */}
             <div
-              className="allus-no-drag"
               style={{
-                fontSize: 10,
-                color: 'var(--allus-text-muted)',
-                textAlign: 'center',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                fontFamily: 'var(--allus-font-mono)',
+                fontSize: 30,
+                fontWeight: 700,
+                color: session ? alertColor : 'var(--allus-text-muted)',
+                letterSpacing: '-0.5px',
+                flexShrink: 0,
+                lineHeight: 1,
               }}
-              title={label}
             >
-              {label}
+              {session ? formatDuration(remaining) : '–'}
             </div>
-          )}
 
-          {/* Controles: play/pause, stop, nova tarefa — só ícone */}
-          <div className="allus-no-drag" style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-            {!session || session.status === 'Interrompido' || session.status === 'Concluído' ? (
-              <Tooltip text={lastTask ? `Continuar: ${lastTask.title}` : 'Começar'}>
+            {/* Botões circulares, mesmo diâmetro, alinhados */}
+            <div className="allus-no-drag" style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+              {!session || session.status === 'Interrompido' || session.status === 'Concluído' ? (
                 <button
                   onClick={() => (lastTask ? quickStartTask(lastTask.taskId, lastTask.title) : showAdd ? submitAdd() : setShowAdd(true))}
-                  style={{ ...miniIconBtn, color: '#ecdc01', borderColor: 'rgba(236, 220, 1, 0.4)' }}
+                  style={{ ...hudCircleBtn, color: '#ecdc01', borderColor: 'rgba(236, 220, 1, 0.4)' }}
+                  title={lastTask ? `Continuar: ${lastTask.title}` : 'Começar'}
                 >
                   ▶
                 </button>
-              </Tooltip>
-            ) : (
-              <>
-                <Tooltip text={session.status === 'Ativo' ? 'Pausar' : 'Retomar'}>
+              ) : (
+                <>
                   <button
                     onClick={() => invokeAction('timer:playPause', undefined)}
-                    style={{ ...miniIconBtn, color: session.status === 'Ativo' ? '#ffb84d' : '#ecdc01' }}
+                    style={{ ...hudCircleBtn, color: session.status === 'Ativo' ? '#ffb84d' : '#ecdc01' }}
+                    title={session.status === 'Ativo' ? 'Pausar' : 'Retomar'}
                   >
                     {session.status === 'Ativo' ? '⏸' : '▶'}
                   </button>
-                </Tooltip>
-                <Tooltip text="Parar">
                   <button
                     onClick={() => invokeAction('timer:stop', undefined)}
-                    style={{ ...miniIconBtn, color: 'var(--allus-status-interrompido)' }}
+                    style={{ ...hudCircleBtn, color: 'var(--allus-status-interrompido)' }}
+                    title="Parar"
                   >
                     ⏹
                   </button>
-                </Tooltip>
-              </>
-            )}
-            <Tooltip text="Nova tarefa">
-              <button onClick={() => setShowAdd((v) => !v)} style={miniIconBtn}>
-                +
+                  <button
+                    onClick={() =>
+                      invokeAction(session.cycleKind === 'Foco' ? 'timer:skipToBreak' : 'timer:skipToFocus', undefined)
+                    }
+                    style={{ ...hudCircleBtn, background: 'rgba(236, 220, 1, 0.85)', borderColor: 'rgba(236, 220, 1, 0.85)', color: '#141400' }}
+                    title={session.cycleKind === 'Foco' ? 'Pular pra pausa' : 'Encerrar pausa'}
+                  >
+                    ⏭
+                  </button>
+                </>
+              )}
+              <button
+                className="allus-no-drag"
+                onClick={toggleMini}
+                style={{ ...hudCircleBtn, width: 20, height: 20, fontSize: 10, opacity: 0.7 }}
+                title="Abrir painel completo"
+              >
+                ⤢
               </button>
-            </Tooltip>
+            </div>
           </div>
 
-          {/* Últimas 3 tarefas — linhas bem enxutas, clique já assume e roda */}
-          {switchableRecentTasks.length > 0 && (
+          {/* Lista de tarefas: a ativa (se houver) vem destacada como 1º item,
+              seguida das últimas recentes — substitui o texto ao lado do
+              relógio, que forçava a janela a esticar na horizontal. */}
+          {(activeLog || hudSwitchableTasks.length > 0) && (
             <div className="allus-no-drag" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {switchableRecentTasks.map((t) => (
+              {session && activeLog && (
+                <div
+                  style={{
+                    width: '100%',
+                    padding: '4px 6px',
+                    borderRadius: 5,
+                    border: '1px solid rgba(236, 220, 1, 0.35)',
+                    background: 'rgba(236, 220, 1, 0.14)',
+                    color: '#ecdc01',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                  title={label}
+                >
+                  {label}
+                </div>
+              )}
+              {hudSwitchableTasks.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => quickStartTask(t.taskId, t.taskTitle)}
@@ -418,11 +434,9 @@ export function FloatingPanel() {
               {cycleEmoji} {isFocus ? 'FOCO' : 'PAUSA'}
             </div>
           )}
-          <Tooltip text="Modo mini">
-            <button className="allus-no-drag" onClick={toggleMini} style={{ ...miniIconBtn, width: 20, height: 20, fontSize: 10, flexShrink: 0 }}>
-              ⤡
-            </button>
-          </Tooltip>
+          <button className="allus-no-drag" onClick={toggleMini} style={{ ...miniIconBtn, width: 20, height: 20, fontSize: 10, flexShrink: 0 }} title="Modo mini">
+            ⤡
+          </button>
         </div>
 
         {/* Timer grande no topo */}
@@ -618,17 +632,16 @@ export function FloatingPanel() {
           >
             ⏹ Parar
           </button>
-          <Tooltip text="Trocar de tarefa">
-            <button
-              style={{
-                ...iconBtn,
-                transition: 'all 0.2s ease',
-              }}
-              onClick={() => setModeSelectTask({ taskId: null, title: '' })}
-            >
-              ↻
-            </button>
-          </Tooltip>
+          <button
+            style={{
+              ...iconBtn,
+              transition: 'all 0.2s ease',
+            }}
+            onClick={() => setModeSelectTask({ taskId: null, title: '' })}
+            title="Trocar de tarefa"
+          >
+            ↻
+          </button>
         </div>
       )}
 
@@ -816,28 +829,26 @@ export function FloatingPanel() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-2)' }}>
             <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', fontWeight: 500 }}>Configurações</div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <Tooltip text={isSizeLocked ? 'Destravar tamanho' : 'Travar tamanho'}>
-                <button
-                  style={{
-                    ...iconBtn,
-                    transition: 'all 0.2s ease',
-                    background: isSizeLocked ? 'rgba(255, 184, 77, 0.2)' : 'rgba(255,255,255,0.06)',
-                    borderColor: isSizeLocked ? 'rgba(255, 184, 77, 0.3)' : 'rgba(255,255,255,0.12)',
-                    color: isSizeLocked ? '#ffb84d' : 'var(--allus-text-primary)',
-                  }}
-                  onClick={handleSizeLockToggle}
-                >
-                  {isSizeLocked ? '🔒' : '🔓'}
-                </button>
-              </Tooltip>
-              <Tooltip text="Abrir janela principal">
-                <button
-                  style={{ ...iconBtn, transition: 'all 0.2s ease' }}
-                  onClick={() => window.allus.invoke('window:openMain', undefined)}
-                >
-                  ⤢
-                </button>
-              </Tooltip>
+              <button
+                style={{
+                  ...iconBtn,
+                  transition: 'all 0.2s ease',
+                  background: isSizeLocked ? 'rgba(255, 184, 77, 0.2)' : 'rgba(255,255,255,0.06)',
+                  borderColor: isSizeLocked ? 'rgba(255, 184, 77, 0.3)' : 'rgba(255,255,255,0.12)',
+                  color: isSizeLocked ? '#ffb84d' : 'var(--allus-text-primary)',
+                }}
+                onClick={handleSizeLockToggle}
+                title={isSizeLocked ? 'Destravar tamanho' : 'Travar tamanho'}
+              >
+                {isSizeLocked ? '🔒' : '🔓'}
+              </button>
+              <button
+                style={{ ...iconBtn, transition: 'all 0.2s ease' }}
+                onClick={() => window.allus.invoke('window:openMain', undefined)}
+                title="Abrir janela principal"
+              >
+                ⤢
+              </button>
             </div>
           </div>
         </div>
@@ -897,4 +908,22 @@ const miniIconBtn: React.CSSProperties = {
   justifyContent: 'center',
   cursor: 'pointer',
   flexShrink: 0,
+};
+
+// Botões circulares do HUD compacto — mesmo diâmetro, hover suave.
+const hudCircleBtn: React.CSSProperties = {
+  width: 26,
+  height: 26,
+  borderRadius: '50%',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--allus-text-primary)',
+  fontSize: 11,
+  fontWeight: 600,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  flexShrink: 0,
+  transition: 'all 0.15s ease',
 };

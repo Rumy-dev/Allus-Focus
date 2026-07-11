@@ -7,7 +7,27 @@ import { ToastHost } from '../../components/ToastHost';
 import { ContextMenu } from '../../components/ContextMenu';
 import type { ContextMenuItem } from '../../components/ContextMenu';
 import { invokeAction, confirmDialog } from '../../invoke';
-import type { Client, Project, Task, TeamMember } from '../../../shared/types';
+import type { Client, Project, Task, TaskPriority, TaskStatus, TeamMember } from '../../../shared/types';
+
+const TASK_STATUSES: TaskStatus[] = ['Pendente', 'Em andamento', 'Bloqueado', 'Concluído'];
+const TASK_PRIORITIES: TaskPriority[] = ['Alta', 'Média', 'Baixa'];
+const STATUS_COLOR: Record<TaskStatus, string> = {
+  Pendente: '#ffd166', // amarelo/âmbar
+  'Em andamento': 'var(--allus-status-ativo)', // amarelo forte — mesma cor que "Ativo" já usa no resto do app
+  Bloqueado: 'var(--allus-status-interrompido)', // vermelho
+  Concluído: 'var(--allus-status-concluido)', // verde
+};
+const STATUS_BG: Record<TaskStatus, string> = {
+  Pendente: 'rgba(255, 209, 102, 0.16)',
+  'Em andamento': 'rgba(236, 220, 1, 0.16)',
+  Bloqueado: 'rgba(255, 107, 107, 0.16)',
+  Concluído: 'rgba(126, 242, 155, 0.16)',
+};
+const PRIORITY_COLOR: Record<TaskPriority, string> = {
+  Alta: 'var(--allus-status-interrompido)',
+  Média: 'var(--allus-status-pausado)',
+  Baixa: 'var(--allus-text-muted)',
+};
 import { Z } from '../../styles/zIndex';
 
 interface Clipboard {
@@ -41,6 +61,7 @@ export function TaskCenter() {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [moveTask, setMoveTask] = useState<Task | null>(null);
   const [propsTask, setPropsTask] = useState<Task | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -56,8 +77,11 @@ export function TaskCenter() {
     if (!snapshot) return [];
     const term = search.trim().toLowerCase();
     const clients = snapshot.clients
+      .filter((c) => showArchived === !!c.archivedAt)
       .map((client) => {
-        const projects = snapshot.projects.filter((p) => p.clientId === client.id);
+        const projects = snapshot.projects.filter(
+          (p) => p.clientId === client.id && showArchived === !!p.archivedAt,
+        );
         return { client, projects };
       })
       .filter(
@@ -67,7 +91,7 @@ export function TaskCenter() {
           projects.some((p) => p.name.toLowerCase().includes(term)),
       );
     return clients;
-  }, [snapshot, search]);
+  }, [snapshot, search, showArchived]);
 
   if (!snapshot) return <div className="allus-app-bg" style={{ height: '100%' }} />;
 
@@ -108,10 +132,14 @@ export function TaskCenter() {
     selectProjectForEdit(null);
   }
 
-  async function deleteProjectById(project: Project) {
-    if (!confirmDialog(`Excluir o projeto "${project.name}"? As tarefas dentro dele também serão apagadas.`)) return;
-    await invokeAction('project:delete', { projectId: project.id });
+  async function archiveProjectById(project: Project) {
+    if (!confirmDialog(`Arquivar o projeto "${project.name}"? As tarefas dentro dele também são arquivadas — pode restaurar depois em "Ver arquivados".`)) return;
+    await invokeAction('project:archive', { projectId: project.id });
     if (selectedProjectId === project.id) selectProjectForEdit(null);
+  }
+
+  async function unarchiveProjectById(project: Project) {
+    await invokeAction('project:unarchive', { projectId: project.id });
   }
 
   async function addTaskToSelected() {
@@ -122,51 +150,61 @@ export function TaskCenter() {
     setNewTaskField('');
   }
 
-  async function deleteTask(task: Task) {
-    if (!confirmDialog(`Excluir "${task.title}"?`)) return;
-    await invokeAction('taskTree:delete', { taskId: task.id });
+  async function archiveTask(task: Task) {
+    if (!confirmDialog(`Arquivar "${task.title}"? Pode restaurar depois em "Ver arquivados".`)) return;
+    await invokeAction('taskTree:archive', { taskId: task.id });
+  }
+
+  async function unarchiveTask(task: Task) {
+    await invokeAction('taskTree:unarchive', { taskId: task.id });
   }
 
   async function pasteInto(project: Project) {
     if (!clipboard) return;
     await invokeAction('taskTree:add', { projectId: project.id, parentTaskId: null, title: clipboard.title });
     if (clipboard.cut) {
-      await invokeAction('taskTree:delete', { taskId: clipboard.taskId });
+      await invokeAction('taskTree:archive', { taskId: clipboard.taskId });
     }
     setClipboard(null);
   }
 
   function topLevelTasks(projectId: string): Task[] {
-    return snapshot!.tasks.filter((t) => t.projectId === projectId && !t.parentTaskId);
+    return snapshot!.tasks.filter(
+      (t) => t.projectId === projectId && !t.parentTaskId && showArchived === !!t.archivedAt,
+    );
   }
 
   function subtasksOf(taskId: string): Task[] {
-    return snapshot!.tasks.filter((t) => t.parentTaskId === taskId);
+    return snapshot!.tasks.filter((t) => t.parentTaskId === taskId && showArchived === !!t.archivedAt);
   }
 
   function openProjectMenu(pos: { x: number; y: number }, project: Project) {
-    const items: ContextMenuItem[] = [
-      { label: 'Selecionar', onClick: () => selectProjectForEdit(project) },
-      {
-        label: 'Colar tarefa aqui',
-        disabled: !clipboard,
-        onClick: () => pasteInto(project),
-      },
-      { label: 'Apagar projeto', danger: true, onClick: () => deleteProjectById(project) },
-    ];
+    const items: ContextMenuItem[] = project.archivedAt
+      ? [{ label: 'Restaurar projeto', onClick: () => unarchiveProjectById(project) }]
+      : [
+          { label: 'Selecionar', onClick: () => selectProjectForEdit(project) },
+          {
+            label: 'Colar tarefa aqui',
+            disabled: !clipboard,
+            onClick: () => pasteInto(project),
+          },
+          { label: 'Arquivar projeto', danger: true, onClick: () => archiveProjectById(project) },
+        ];
     setMenu({ x: pos.x, y: pos.y, items });
   }
 
   function openTaskMenu(pos: { x: number; y: number }, task: Task) {
-    const items: ContextMenuItem[] = [
-      { label: 'Focar', onClick: () => invokeAction('task:focus', { taskId: task.id, subtaskId: null, title: task.title }) },
-      { label: 'Renomear', onClick: () => setRenaming({ id: task.id, value: task.title }) },
-      { label: 'Copiar', onClick: () => setClipboard({ taskId: task.id, title: task.title, cut: false }) },
-      { label: 'Recortar', onClick: () => setClipboard({ taskId: task.id, title: task.title, cut: true }) },
-      { label: 'Mover para...', onClick: () => setMoveTask(task) },
-      { label: 'Propriedades', onClick: () => setPropsTask(task) },
-      { label: 'Apagar', danger: true, onClick: () => deleteTask(task) },
-    ];
+    const items: ContextMenuItem[] = task.archivedAt
+      ? [{ label: 'Restaurar tarefa', onClick: () => unarchiveTask(task) }]
+      : [
+          { label: 'Focar', onClick: () => invokeAction('task:focus', { taskId: task.id, subtaskId: null, title: task.title }) },
+          { label: 'Renomear', onClick: () => setRenaming({ id: task.id, value: task.title }) },
+          { label: 'Copiar', onClick: () => setClipboard({ taskId: task.id, title: task.title, cut: false }) },
+          { label: 'Recortar', onClick: () => setClipboard({ taskId: task.id, title: task.title, cut: true }) },
+          { label: 'Mover para...', onClick: () => setMoveTask(task) },
+          { label: 'Propriedades', onClick: () => setPropsTask(task) },
+          { label: 'Arquivar', danger: true, onClick: () => archiveTask(task) },
+        ];
     setMenu({ x: pos.x, y: pos.y, items });
   }
 
@@ -194,27 +232,41 @@ export function TaskCenter() {
     openTaskMenu({ x: rect.left, y: rect.bottom }, task);
   }
 
-  async function deleteClientById(client: Client) {
-    const projectCount = snapshot!.projects.filter((p) => p.clientId === client.id).length;
-    if (!confirmDialog(`Excluir o cliente "${client.name}"? Os ${projectCount} projeto(s) dentro dele também serão apagados.`)) return;
+  async function archiveClientById(client: Client) {
+    const projectCount = snapshot!.projects.filter((p) => p.clientId === client.id && !p.archivedAt).length;
+    if (!confirmDialog(`Arquivar o cliente "${client.name}"? Os ${projectCount} projeto(s) ativo(s) dentro dele também são arquivados — pode restaurar depois em "Ver arquivados".`)) return;
     try {
-      await invokeAction('client:delete', { clientId: client.id });
+      await invokeAction('client:archive', { clientId: client.id });
     } catch (err) {
-      console.error('Erro ao apagar cliente:', err);
+      console.error('Erro ao arquivar cliente:', err);
     }
   }
 
+  async function unarchiveClientById(client: Client) {
+    await invokeAction('client:unarchive', { clientId: client.id });
+  }
+
   function openClientMenu(pos: { x: number; y: number }, client: Client) {
-    const items: ContextMenuItem[] = [
-      {
-        label: 'Apagar cliente',
-        danger: true,
-        onClick: async () => {
-          setMenu(null); // Fecha o menu
-          await deleteClientById(client);
-        },
-      },
-    ];
+    const items: ContextMenuItem[] = client.archivedAt
+      ? [
+          {
+            label: 'Restaurar cliente',
+            onClick: async () => {
+              setMenu(null);
+              await unarchiveClientById(client);
+            },
+          },
+        ]
+      : [
+          {
+            label: 'Arquivar cliente',
+            danger: true,
+            onClick: async () => {
+              setMenu(null); // Fecha o menu
+              await archiveClientById(client);
+            },
+          },
+        ];
     setMenu({ x: pos.x, y: pos.y, items });
   }
 
@@ -238,12 +290,26 @@ export function TaskCenter() {
     >
       <Titlebar title="CENTRAL DE TAREFAS · Cliente → Projeto → Tarefa → Subtarefa" />
       <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1, overflow: 'hidden' }}>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar cliente ou projeto..."
-          style={inputStyle}
-        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar cliente ou projeto..."
+            style={{ ...inputStyle, flex: 1 }}
+          />
+          <button
+            style={{
+              ...pillButtonStyle,
+              ...(showArchived
+                ? { background: 'rgba(255, 184, 77, 0.2)', border: '1px solid rgba(255, 184, 77, 0.4)', color: '#ffb84d' }
+                : {}),
+            }}
+            onClick={() => setShowArchived((v) => !v)}
+            title={showArchived ? 'Ver ativos' : 'Ver arquivados'}
+          >
+            {showArchived ? '📦 Arquivados' : '📦 Ver arquivados'}
+          </button>
+        </div>
 
         <section className="allus-glass" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
@@ -262,9 +328,10 @@ export function TaskCenter() {
             {selectedProjectId && (
               <button
                 style={pillButtonStyle}
+                title="Arquivar projeto"
                 onClick={() => {
                   const project = snapshot!.projects.find((p) => p.id === selectedProjectId);
-                  if (project) deleteProjectById(project);
+                  if (project) archiveProjectById(project);
                 }}
               >
                 🗑
@@ -309,7 +376,7 @@ export function TaskCenter() {
           {grouped.map(({ client, projects }) => (
             <div key={client.id}>
               <div
-                style={rowStyle}
+                style={{ ...rowStyle, opacity: client.archivedAt ? 0.55 : 1 }}
                 onClick={() => toggle(expandedClients, setExpandedClients, client.id)}
               >
                 <span>{expandedClients.has(client.id) ? '▾' : '▸'}</span>
@@ -331,7 +398,7 @@ export function TaskCenter() {
                 projects.map((project) => (
                   <div key={project.id} style={{ marginLeft: 18 }}>
                     <div
-                      style={rowStyle}
+                      style={{ ...rowStyle, opacity: project.archivedAt ? 0.55 : 1 }}
                       onClick={() => toggle(expandedProjects, setExpandedProjects, project.id)}
                       onContextMenu={(e) => onProjectContextMenu(e, project)}
                     >
@@ -475,18 +542,58 @@ function TaskRow({
   onMenuButton?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   const isRenaming = renaming?.id === task.id;
+  const isArchived = !!task.archivedAt;
   return (
-    <div style={rowStyle} onContextMenu={onContextMenu}>
+    <div style={{ ...rowStyle, opacity: isArchived ? 0.55 : 1 }} onContextMenu={onContextMenu}>
       {onToggleExpand && (
         <span onClick={onToggleExpand} style={{ cursor: 'pointer' }}>
           {expanded ? '▾' : '▸'}
         </span>
       )}
-      <input
-        type="checkbox"
-        checked={task.isDone}
-        onChange={() => invokeAction('taskTree:toggleDone', { taskId: task.id })}
-      />
+      {isArchived ? (
+        <span
+          title={`Prioridade: ${task.priority}`}
+          style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: PRIORITY_COLOR[task.priority] }}
+        />
+      ) : (
+        <span
+          className="allus-no-drag"
+          title={`Prioridade: ${task.priority} (clique pra trocar)`}
+          onClick={(e) => {
+            e.stopPropagation();
+            const next = TASK_PRIORITIES[(TASK_PRIORITIES.indexOf(task.priority) + 1) % TASK_PRIORITIES.length];
+            invokeAction('taskTree:setPriority', { taskId: task.id, priority: next });
+          }}
+          style={{
+            width: 9,
+            height: 9,
+            borderRadius: '50%',
+            flexShrink: 0,
+            cursor: 'pointer',
+            background: PRIORITY_COLOR[task.priority],
+          }}
+        />
+      )}
+      {!isArchived && (
+        <select
+          className="allus-no-drag"
+          value={task.status}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => invokeAction('taskTree:setStatus', { taskId: task.id, status: e.target.value as TaskStatus })}
+          style={{
+            ...statusSelectStyle,
+            color: STATUS_COLOR[task.status],
+            borderColor: STATUS_COLOR[task.status],
+            background: STATUS_BG[task.status],
+          }}
+        >
+          {TASK_STATUSES.map((s) => (
+            <option key={s} value={s} style={{ color: STATUS_COLOR[s], background: '#1a1a1a' }}>
+              {s}
+            </option>
+          ))}
+        </select>
+      )}
       {isRenaming ? (
         <>
           <input
@@ -507,19 +614,32 @@ function TaskRow({
           <button style={iconGhostButtonStyle} onClick={() => setRenaming(null)}>✕</button>
         </>
       ) : (
-        <span style={{ flex: 1, textDecoration: task.isDone ? 'line-through' : undefined }} onDoubleClick={() => setRenaming({ id: task.id, value: task.title })}>
+        <span
+          style={{ flex: 1, textDecoration: isArchived ? 'line-through' : undefined }}
+          onDoubleClick={() => !isArchived && setRenaming({ id: task.id, value: task.title })}
+        >
           {task.title}
         </span>
       )}
       {subtaskCount !== undefined && subtaskCount > 0 && (
         <span style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>{subtaskCount} subtarefa(s)</span>
       )}
-      <button
-        style={iconGhostButtonStyle}
-        onClick={() => invokeAction('task:focus', { taskId: task.id, subtaskId: null, title: task.title })}
-      >
-        Focar
-      </button>
+      {isArchived ? (
+        <button
+          style={iconGhostButtonStyle}
+          onClick={() => invokeAction('taskTree:unarchive', { taskId: task.id })}
+          title="Restaurar tarefa"
+        >
+          Restaurar
+        </button>
+      ) : (
+        <button
+          style={iconGhostButtonStyle}
+          onClick={() => invokeAction('task:focus', { taskId: task.id, subtaskId: null, title: task.title })}
+        >
+          Focar
+        </button>
+      )}
       {onMenuButton && (
         <button style={iconGhostButtonStyle} onClick={onMenuButton} title="Mais opções">
           ⋮
@@ -593,6 +713,8 @@ function PropertiesModal({
       <div className="allus-glass allus-no-drag" style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Propriedades</div>
         <PropRow label="Título" value={task.title} />
+        <PropRow label="Status" value={task.status} />
+        <PropRow label="Prioridade" value={task.priority} />
         <PropRow label="Projeto" value={project?.name ?? '—'} />
         <PropRow label="Cliente" value={client?.name ?? '—'} />
         <PropRow label="Criado em" value={createdAt} />
@@ -656,6 +778,16 @@ const iconGhostButtonStyle: React.CSSProperties = {
   background: 'transparent',
   color: 'var(--allus-text-muted)',
   fontSize: 12,
+};
+
+const statusSelectStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--allus-glass-border)',
+  borderRadius: 6,
+  padding: '2px 4px',
+  fontSize: 10,
+  fontWeight: 600,
+  cursor: 'pointer',
 };
 
 const rowStyle: React.CSSProperties = {

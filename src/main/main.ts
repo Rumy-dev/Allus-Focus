@@ -150,6 +150,7 @@ app.whenReady().then(async () => {
         floatingPanelOpacity: state.profile.preferences.floatingPanelOpacity,
         floatingPanelSize: state.profile.preferences.floatingPanelSize,
         floatingPanelCompactSize: state.profile.preferences.floatingPanelCompactSize,
+        floatingPanelPosition: state.profile.preferences.floatingPanelPosition,
         floatingPanelIsCompactMode: state.profile.preferences.floatingPanelIsCompactMode,
         floatingPanelSizeLocked: state.profile.preferences.floatingPanelSizeLocked,
         floatingPanelExpanded: state.profile.preferences.floatingPanelExpanded,

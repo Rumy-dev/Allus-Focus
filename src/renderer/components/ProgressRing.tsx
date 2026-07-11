@@ -3,9 +3,20 @@ interface ProgressRingProps {
   size?: number;
   label: string;
   sublabel: string;
+  colorDeep?: string;
+  colorMid?: string;
+  colorSoft?: string;
 }
 
-export function ProgressRing({ progress, size = 220, label, sublabel }: ProgressRingProps) {
+export function ProgressRing({
+  progress,
+  size = 220,
+  label,
+  sublabel,
+  colorDeep = 'var(--allus-yellow-deep)',
+  colorMid = 'var(--allus-yellow)',
+  colorSoft = 'var(--allus-yellow-soft)',
+}: ProgressRingProps) {
   const stroke = 12;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -16,9 +27,9 @@ export function ProgressRing({ progress, size = 220, label, sublabel }: Progress
       <svg width={size} height={size}>
         <defs>
           <linearGradient id="allus-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--allus-yellow-deep)" />
-            <stop offset="55%" stopColor="var(--allus-yellow)" />
-            <stop offset="100%" stopColor="var(--allus-yellow-soft)" />
+            <stop offset="0%" stopColor={colorDeep} />
+            <stop offset="55%" stopColor={colorMid} />
+            <stop offset="100%" stopColor={colorSoft} />
           </linearGradient>
         </defs>
         <circle

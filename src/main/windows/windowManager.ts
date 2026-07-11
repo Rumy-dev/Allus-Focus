@@ -31,6 +31,31 @@ export function setQuitting(value: boolean): void {
 }
 
 let floatingResizeTimeout: NodeJS.Timeout | null = null;
+let floatingMoveTimeout: NodeJS.Timeout | null = null;
+
+// Rampa de opacidade simples pra abrir/fechar o painel flutuante com um
+// fade suave em vez de aparecer/sumir abruptamente. A janela já é
+// transparent:true, então setOpacity funciona nativamente em Windows e macOS
+// sem precisar de nenhuma lib de animação.
+const FLOATING_FADE_MS = 140;
+const FLOATING_FADE_STEP_MS = 16;
+function fadeFloatingWindow(win: BrowserWindow, from: number, to: number, onDone?: () => void): void {
+  if (win.isDestroyed()) return;
+  const steps = Math.max(1, Math.round(FLOATING_FADE_MS / FLOATING_FADE_STEP_MS));
+  let step = 0;
+  const tick = () => {
+    if (win.isDestroyed()) return;
+    step += 1;
+    const t = Math.min(1, step / steps);
+    win.setOpacity(from + (to - from) * t);
+    if (t < 1) {
+      setTimeout(tick, FLOATING_FADE_STEP_MS);
+    } else {
+      onDone?.();
+    }
+  };
+  tick();
+}
 
 // Diferencia um resize disparado pelo usuário (arrastando a borda) de um
 // resize programático (auto-fit do painel flutuante via setFloatingHeight).
@@ -322,7 +347,10 @@ export function showMainWindow(onShown?: () => void, showImmediately = true): vo
 
 export function showFloatingPanel(): void {
   if (windows.floating && !windows.floating.isDestroyed()) {
-    windows.floating.show();
+    const win = windows.floating;
+    win.setOpacity(0);
+    win.show();
+    fadeFloatingWindow(win, 0, 1);
     return;
   }
 
@@ -339,15 +367,17 @@ export function showFloatingPanel(): void {
   // valor stale: o conteúdo real sempre dita o resize.
   let width: number;
   let height: number;
-  const savedSize = snapshot.floatingPanelSize;
   const isMini = snapshot.floatingPanelIsCompactMode ?? true;
+  const savedSize = isMini ? snapshot.floatingPanelCompactSize : snapshot.floatingPanelSize;
   if (savedSize?.width && savedSize?.height) {
     width = savedSize.width;
     height = savedSize.height;
   } else if (isMini) {
-    // Mini widget (padrão): relógio pequeno, botões de ícone, últimas 3.
-    width = 190;
-    height = hasActiveSession ? 190 : 140;
+    // HUD compacto (padrão): cronômetro + botões numa linha horizontal só,
+    // sem texto de tarefa nela — a lista de tarefas (com a ativa destacada)
+    // fica embaixo, dando altura extra quando há sessão em andamento.
+    width = 260;
+    height = hasActiveSession ? 110 : 70;
   } else if (snapshot.floatingPanelExpanded) {
     width = hasActiveSession ? 429 : 307;
     height = hasActiveSession ? 479 : 390;
@@ -356,11 +386,31 @@ export function showFloatingPanel(): void {
     height = hasActiveSession ? 360 : 320;
   }
 
+  // Posição salva só é aplicada se ainda cair dentro de algum monitor
+  // conectado — evita a janela abrir fora da tela depois de trocar de
+  // configuração de monitores (ex: desconectar um segundo monitor).
+  let x: number | undefined;
+  let y: number | undefined;
+  const savedPosition = snapshot.floatingPanelPosition;
+  if (savedPosition) {
+    const fitsSomeDisplay = screen.getAllDisplays().some((d) =>
+      savedPosition.x >= d.bounds.x - width &&
+      savedPosition.x <= d.bounds.x + d.bounds.width &&
+      savedPosition.y >= d.bounds.y - height &&
+      savedPosition.y <= d.bounds.y + d.bounds.height,
+    );
+    if (fitsSomeDisplay) {
+      x = savedPosition.x;
+      y = savedPosition.y;
+    }
+  }
+
   const win = new BrowserWindow({
     width,
     height,
-    x: undefined,
-    y: undefined,
+    x,
+    y,
+    show: false,
     frame: false,
     transparent: true,
     // ATENÇÃO: o painel flutuante é a ÚNICA janela do app com transparência
@@ -388,6 +438,26 @@ export function showFloatingPanel(): void {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   loadPage(win, 'floating');
 
+  win.once('ready-to-show', () => {
+    win.setOpacity(0);
+    win.show();
+    fadeFloatingWindow(win, 0, 1);
+  });
+
+  // Salvar posição quando o usuário arrasta o painel (com debounce, mesmo
+  // padrão do resize abaixo).
+  win.on('moved', () => {
+    if (floatingMoveTimeout) clearTimeout(floatingMoveTimeout);
+    floatingMoveTimeout = setTimeout(() => {
+      const bounds = win.getBounds();
+      const position = { x: bounds.x, y: bounds.y };
+      appStore.patch({ floatingPanelPosition: position });
+      authManager.updatePreferences({ floatingPanelPosition: position }).catch((err) => {
+        console.error('[floating] falha ao salvar posição do painel', err);
+      });
+    }, 300);
+  });
+
   // Salvar tamanho quando usuário redimensiona manualmente (com debounce).
   // Resizes programáticos (auto-fit) são ignorados aqui — ver
   // markProgrammaticFloatingResize acima.
@@ -399,8 +469,10 @@ export function showFloatingPanel(): void {
     floatingResizeTimeout = setTimeout(() => {
       const bounds = win.getBounds();
       const size = { width: bounds.width, height: bounds.height };
-      appStore.patch({ floatingPanelSize: size });
-      authManager.updatePreferences({ floatingPanelSize: size }).catch((err) => {
+      const isMini = appStore.getSnapshot().floatingPanelIsCompactMode ?? true;
+      const patch = isMini ? { floatingPanelCompactSize: size } : { floatingPanelSize: size };
+      appStore.patch(patch);
+      authManager.updatePreferences(patch).catch((err) => {
         console.error('[floating] falha ao salvar tamanho do painel', err);
       });
     }, 300);
@@ -409,12 +481,24 @@ export function showFloatingPanel(): void {
   windows.floating = win;
 }
 
+export function getFloatingWindow(): BrowserWindow | null {
+  return windows.floating;
+}
+
 export function hideFloatingPanel(): void {
-  windows.floating?.hide();
+  const win = windows.floating;
+  if (!win || win.isDestroyed() || !win.isVisible()) return;
+  fadeFloatingWindow(win, win.getOpacity(), 0, () => {
+    if (!win.isDestroyed()) win.hide();
+  });
 }
 
 export function unhideFloatingPanel(): void {
-  windows.floating?.show();
+  const win = windows.floating;
+  if (!win || win.isDestroyed()) return;
+  win.setOpacity(0);
+  win.show();
+  fadeFloatingWindow(win, 0, 1);
 }
 
 export function toggleTaskCenter(): void {
@@ -455,9 +539,15 @@ export function setFloatingPanelSizeLocked(locked: boolean): void {
   }
 }
 
+// Destrava o tamanho customizado do modo atual (mini ou expandido), devolvendo
+// o painel ao auto-fit. Chamado por window:openFloating.
 export function resetFloatingPanelToNormal(): void {
-  // O "modo compacto" foi removido da interface — essa função só existe
-  // porque window:openFloating ainda a chama; não faz mais nada.
+  const isMini = appStore.getSnapshot().floatingPanelIsCompactMode ?? true;
+  const patch = isMini ? { floatingPanelCompactSize: null } : { floatingPanelSize: null };
+  appStore.patch(patch);
+  authManager.updatePreferences(patch).catch((err) => {
+    console.error('[floating] falha ao resetar tamanho do painel', err);
+  });
 }
 
 export function showTaskCenter(): void {

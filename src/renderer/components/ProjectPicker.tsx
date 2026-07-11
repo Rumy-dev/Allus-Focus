@@ -22,8 +22,15 @@ export function ProjectPicker({ clients, projects, selectedProjectId, onSelect, 
     onSelect(selectedProjectId ?? '');
   }
 
+  // Itens arquivados não aparecem como destino pra novas sessões/tarefas —
+  // continuam intactos em relatórios/sessões antigas, só saem das opções de
+  // "começar algo novo".
   const groups = clients
-    .map((client) => ({ client, clientProjects: projects.filter((p) => p.clientId === client.id) }))
+    .filter((c) => !c.archivedAt)
+    .map((client) => ({
+      client,
+      clientProjects: projects.filter((p) => p.clientId === client.id && !p.archivedAt),
+    }))
     .filter((g) => g.clientProjects.length > 0);
 
   return createPortal(

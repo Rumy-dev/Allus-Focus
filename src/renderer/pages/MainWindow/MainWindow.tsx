@@ -8,7 +8,6 @@ import { ToastHost } from '../../components/ToastHost';
 import { DateFilterBar } from '../../components/DateFilterBar';
 import { ProjectPicker } from '../../components/ProjectPicker';
 import { TaskSuggestions } from '../../components/TaskSuggestions';
-import { Tooltip } from '../../components/Tooltip';
 import { Toggle } from '../../components/Toggle';
 import { useKeyboardShortcuts } from '../../useKeyboardShortcuts';
 import { invokeAction, confirmDialog } from '../../invoke';
@@ -17,6 +16,40 @@ import { useDataRefreshKey } from '../../useDataRefreshKey';
 import { Z } from '../../styles/zIndex';
 import { POMO_MODES, displayPath, formatDuration } from '../../../shared/types';
 import type { PomoMode, PomoSession, SessionDateFilter } from '../../../shared/types';
+
+const MODE_RING_COLORS: Record<PomoMode, { colorDeep: string; colorMid: string; colorSoft: string }> = {
+  classic: { colorDeep: '#3f9e5e', colorMid: '#7ef29b', colorSoft: '#c3f9d3' },
+  deskTime: { colorDeep: 'var(--allus-yellow-deep)', colorMid: 'var(--allus-yellow)', colorSoft: 'var(--allus-yellow-soft)' },
+  deepWork: { colorDeep: '#3f5fa8', colorMid: '#8ab4ff', colorSoft: '#c9dbff' },
+};
+
+const MOTIVATIONAL_QUOTES: string[] = [
+  'Um bloco de cada vez.',
+  'Foco é dizer não a mil coisas boas.',
+  'Progresso, não perfeição.',
+  'O trabalho profundo é raro — e por isso vale.',
+  'Comece pequeno, comece agora.',
+  'Sua atenção é o recurso mais valioso do dia.',
+  'Menos abas, mais foco.',
+  'Um pomodoro concluído vale mais que dez planejados.',
+  'A tarefa parece grande até você começar.',
+  'Feito é melhor que perfeito.',
+  'Cada bloco é uma vitória pequena.',
+  'Foco não é fazer mais — é fazer o que importa.',
+  'O silêncio da concentração também é produtividade.',
+  'Distração pedida, foco emprestado.',
+  'O relógio corre pra você, não contra.',
+  'Trabalho bem feito começa com atenção plena.',
+  'Uma pausa bem usada rende o dobro no próximo bloco.',
+  'Constância vence intensidade.',
+  'Termine o que começou antes de começar outra coisa.',
+  'Seu eu de amanhã agradece o foco de hoje.',
+  'Não é sobre ter tempo, é sobre dar atenção.',
+  'Grandes entregas são feitas de pequenos blocos.',
+  'Respire, foque, comece.',
+  'O que não é medido, não é lembrado — cronometre.',
+  'Menos multitarefa, mais profundidade.',
+];
 
 const KEYBOARD_SHORTCUTS: { keys: string; description: string }[] = [
   { keys: 'Espaço', description: 'Play / Pausar' },
@@ -52,6 +85,7 @@ export function MainWindow() {
   const [myHoursSeconds, setMyHoursSeconds] = useState<number | null>(null);
   const [appInfo, setAppInfo] = useState<{ version: string; isDev: boolean; platform: string } | null>(null);
   const [showNotifPrefs, setShowNotifPrefs] = useState(false);
+  const [showFloatingPrefs, setShowFloatingPrefs] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const quickAddWrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -121,6 +155,19 @@ export function MainWindow() {
   const destinoClient = destinoProject ? snapshot.clients.find((c) => c.id === destinoProject.clientId) : null;
   const destinoLabel = avulsa ? 'Avulsa' : destinoProject ? displayPath([destinoClient?.name, destinoProject.name]) : 'Avulsa';
 
+  // Contexto do bloco em foco agora (se houver); sem sessão ativa, mostra
+  // pra onde a próxima tarefa vai (mesmo destino usado no quick-add).
+  const activeProject = activeLog?.projectId ? snapshot.projects.find((p) => p.id === activeLog.projectId) : null;
+  const activeClient = activeProject ? snapshot.clients.find((c) => c.id === activeProject.clientId) : null;
+  const contextLabel = activeLog
+    ? (activeProject ? displayPath([activeClient?.name, activeProject.name]) : 'Avulsa')
+    : destinoLabel;
+
+  const modeColors = MODE_RING_COLORS[snapshot.selectedMode];
+  // Escolhe uma frase "aleatória" mas estável — só muda quando o cliente/projeto
+  // do contexto muda, não a cada re-render (hash simples da string de contexto).
+  const contextQuote = MOTIVATIONAL_QUOTES[hashString(contextLabel) % MOTIVATIONAL_QUOTES.length];
+
   async function submitQuickAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!quickAddText.trim()) return;
@@ -181,11 +228,7 @@ export function MainWindow() {
         } as CSSProperties
       }
     >
-      <Titlebar
-        title="ALLUS FOCUS"
-        subtitle="Fechar mantém o timer rodando no painel flutuante e na bandeja"
-        onClose={() => window.allus.invoke('window:closeSelf', undefined)}
-      />
+      <Titlebar title="ALLUS FOCUS" onClose={() => window.allus.invoke('window:closeSelf', undefined)} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 24px' }}>
         <div style={{ flex: 1 }} />
@@ -260,7 +303,7 @@ export function MainWindow() {
 
                 {/* Bloco: Perfil */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)' }}>
-                  <div style={sectionHeadingStyle}>Perfil</div>
+                  <div style={sectionHeadingStyle}>👤 Perfil</div>
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>Nome de exibição</div>
                     <form onSubmit={submitNameChange} style={{ display: 'flex', gap: 6 }}>
@@ -292,50 +335,33 @@ export function MainWindow() {
                   </div>
                 </div>
 
-                {/* Bloco: Minhas Horas */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-2)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
-                  <div style={sectionHeadingStyle}>Minhas horas</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--allus-yellow)', fontFamily: 'var(--allus-font-mono)' }}>
-                    {myHoursSeconds === null ? '...' : formatHoursSummary(myHoursSeconds)}
+                {/* Bloco: Minhas Horas — resumo compacto de uma linha, detalhe completo fica na Central de Tempos */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    borderTop: '1px solid var(--allus-glass-border)',
+                    paddingTop: 'var(--allus-space-4)',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={sectionHeadingStyle}>⏱ Minhas horas · 7 dias</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--allus-yellow)', fontFamily: 'var(--allus-font-mono)', marginTop: 2 }}>
+                      {myHoursSeconds === null ? '...' : formatHoursSummary(myHoursSeconds)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>Últimos 7 dias</div>
                   <button
-                    style={{ ...pillButtonStyle, alignSelf: 'flex-start', fontSize: 11 }}
+                    style={{ ...pillButtonStyle, fontSize: 11 }}
                     onClick={() => window.allus.invoke('window:openTimeCenter', undefined)}
                   >
-                    Ver histórico completo →
+                    Ver mais →
                   </button>
                 </div>
 
-                {/* Bloco: Painel flutuante */}
+                {/* Bloco: Preferências — agrupa toggles gerais, painel flutuante e notificações, cada subseção recolhível pra reduzir altura padrão */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
-                  <div style={sectionHeadingStyle}>Painel flutuante</div>
-                  <div>
-                    <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>
-                      Opacidade — {snapshot.floatingPanelOpacity}%
-                    </div>
-                    <input
-                      type="range"
-                      className="allus-slider"
-                      min={0}
-                      max={100}
-                      value={snapshot.floatingPanelOpacity}
-                      onChange={(e) => invokeAction('prefs:setFloatingPanelOpacity', { opacity: Number(e.target.value) })}
-                    />
-                  </div>
-                  <Toggle
-                    checked={snapshot.floatingPanelSizeLocked}
-                    onChange={(checked) => {
-                      window.allus.invoke('window:setFloatingSizeLocked', { locked: checked });
-                      invokeAction('prefs:setFloatingPanelSizeLocked', { locked: checked });
-                    }}
-                    label="Travar tamanho do painel"
-                  />
-                </div>
-
-                {/* Bloco: Preferências */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--allus-space-3)', borderTop: '1px solid var(--allus-glass-border)', paddingTop: 'var(--allus-space-4)' }}>
-                  <div style={sectionHeadingStyle}>Preferências</div>
+                  <div style={sectionHeadingStyle}>⚙️ Preferências</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <Toggle
                       checked={snapshot.soundEnabled}
@@ -354,45 +380,55 @@ export function MainWindow() {
                     />
                   </div>
 
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => setShowNotifPrefs((v) => !v)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--allus-text-muted)',
-                        fontSize: 11,
-                        cursor: 'pointer',
-                        padding: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        marginBottom: showNotifPrefs ? 6 : 0,
-                      }}
-                    >
-                      {showNotifPrefs ? '▾' : '▸'} Notificações
-                    </button>
-                    {showNotifPrefs && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 2 }}>
-                        <Toggle
-                          checked={snapshot.auth.profile?.preferences.notifyFocusStart ?? true}
-                          onChange={(checked) => invokeAction('prefs:setNotify', { event: 'focusStart', enabled: checked })}
-                          label="Início de bloco de foco"
-                        />
-                        <Toggle
-                          checked={snapshot.auth.profile?.preferences.notifyFocusEnd ?? true}
-                          onChange={(checked) => invokeAction('prefs:setNotify', { event: 'focusEnd', enabled: checked })}
-                          label="Fim de foco (início da pausa)"
-                        />
-                        <Toggle
-                          checked={snapshot.auth.profile?.preferences.notifyBreakEnd ?? true}
-                          onChange={(checked) => invokeAction('prefs:setNotify', { event: 'breakEnd', enabled: checked })}
-                          label="Fim de pausa"
-                        />
+                  <CollapsibleSubsection
+                    title="Painel flutuante"
+                    open={showFloatingPrefs}
+                    onToggle={() => setShowFloatingPrefs((v) => !v)}
+                  >
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', marginBottom: 6 }}>
+                        Opacidade — {snapshot.floatingPanelOpacity}%
                       </div>
-                    )}
-                  </div>
+                      <input
+                        type="range"
+                        className="allus-slider"
+                        min={0}
+                        max={100}
+                        value={snapshot.floatingPanelOpacity}
+                        onChange={(e) => invokeAction('prefs:setFloatingPanelOpacity', { opacity: Number(e.target.value) })}
+                      />
+                    </div>
+                    <Toggle
+                      checked={snapshot.floatingPanelSizeLocked}
+                      onChange={(checked) => {
+                        window.allus.invoke('window:setFloatingSizeLocked', { locked: checked });
+                        invokeAction('prefs:setFloatingPanelSizeLocked', { locked: checked });
+                      }}
+                      label="Travar tamanho do painel"
+                    />
+                  </CollapsibleSubsection>
+
+                  <CollapsibleSubsection
+                    title="Notificações"
+                    open={showNotifPrefs}
+                    onToggle={() => setShowNotifPrefs((v) => !v)}
+                  >
+                    <Toggle
+                      checked={snapshot.auth.profile?.preferences.notifyFocusStart ?? true}
+                      onChange={(checked) => invokeAction('prefs:setNotify', { event: 'focusStart', enabled: checked })}
+                      label="Início de bloco de foco"
+                    />
+                    <Toggle
+                      checked={snapshot.auth.profile?.preferences.notifyFocusEnd ?? true}
+                      onChange={(checked) => invokeAction('prefs:setNotify', { event: 'focusEnd', enabled: checked })}
+                      label="Fim de foco (início da pausa)"
+                    />
+                    <Toggle
+                      checked={snapshot.auth.profile?.preferences.notifyBreakEnd ?? true}
+                      onChange={(checked) => invokeAction('prefs:setNotify', { event: 'breakEnd', enabled: checked })}
+                      label="Fim de pausa"
+                    />
+                  </CollapsibleSubsection>
                 </div>
 
                 {/* Bloco: Atalhos de teclado */}
@@ -526,9 +562,70 @@ export function MainWindow() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         {/* A) Cabeçalho */}
         <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <ProgressRing progress={progressValue} label={formatDuration(remaining)} sublabel={cycleLabel} />
+          <span
+            style={{
+              fontSize: 11,
+              color: 'var(--allus-text-muted)',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid var(--allus-glass-border)',
+              borderRadius: 999,
+              padding: '3px 10px',
+            }}
+          >
+            {contextLabel}
+          </span>
+          <ProgressRing progress={progressValue} label={formatDuration(remaining)} sublabel={cycleLabel} {...modeColors} />
           <div style={{ fontSize: 14, color: 'var(--allus-text-secondary)' }}>{taskLabel}</div>
+          <div style={{ fontSize: 11, color: 'var(--allus-text-muted)', fontStyle: 'italic', textAlign: 'center', maxWidth: 280 }}>
+            {contextQuote}
+          </div>
         </section>
+
+        {/* Atalhos de navegação — separados do form de nova tarefa, sem relação com ele */}
+        <div className="allus-no-drag" style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <button
+            type="button"
+            style={pillButtonStyle}
+            onClick={() => window.allus.invoke('window:openFloating', undefined)}
+            title="Painel flutuante (ESC para fechar)"
+          >
+            🪟 Painel
+          </button>
+          <button
+            type="button"
+            style={pillButtonStyle}
+            onClick={() => window.allus.invoke('window:toggleTaskCenter', undefined)}
+            title="Tarefas (Ctrl+T ou clique novamente)"
+          >
+            📁 Tarefas
+          </button>
+          <button
+            type="button"
+            style={pillButtonStyle}
+            onClick={() => window.allus.invoke('window:toggleTimeCenter', undefined)}
+            title="Minhas horas (Ctrl+H ou clique novamente)"
+          >
+            📊 Horas
+          </button>
+          <button
+            type="button"
+            style={pillButtonStyle}
+            onClick={() => window.allus.invoke('window:toggleDashboard', undefined)}
+            title="Dashboard (Ctrl+D ou clique novamente)"
+          >
+            📈 Dashboard
+          </button>
+          {snapshot?.auth.profile?.role === 'admin' && (
+            <button
+              type="button"
+              style={pillButtonStyle}
+              onClick={() => window.allus.invoke('window:togglePulse', undefined)}
+              title="Allus Pulse (Ctrl+P ou clique novamente)"
+            >
+              💠 Pulse
+            </button>
+          )}
+        </div>
 
         {snapshot.clients.length === 0 && (
           <section className="allus-glass" style={{ padding: 20, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
@@ -560,53 +657,96 @@ export function MainWindow() {
 
         {/* C) Tarefas do bloco */}
         <section className="allus-glass" style={{ padding: 16 }}>
-          <div style={{ fontSize: 12, letterSpacing: 1, color: 'var(--allus-text-muted)', marginBottom: 10 }}>
-            TAREFAS DO BLOCO
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{ fontSize: 12, letterSpacing: 1, color: 'var(--allus-text-muted)' }}>
+              TAREFAS DO BLOCO
+            </div>
+            {snapshot.activeTaskLogs.length > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>
+                {snapshot.activeTaskLogs.filter((l) => l.isDone).length}/{snapshot.activeTaskLogs.length}
+              </div>
+            )}
           </div>
           {snapshot.activeTaskLogs.length === 0 && (
-            <div style={{ fontSize: 13, color: 'var(--allus-text-muted)' }}>Nenhuma tarefa neste bloco ainda.</div>
-          )}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {snapshot.activeTaskLogs.map((log) => (
-              <div
-                key={log.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                  background: log.id === session?.activeTaskLogId ? 'rgba(255,255,255,0.08)' : 'transparent',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={log.isDone}
-                  onChange={() => invokeAction('task:toggleDone', { taskLogId: log.id })}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13 }}>{log.taskTitle}</div>
-                </div>
-                <div style={{ fontFamily: 'var(--allus-font-mono)', fontSize: 12, color: 'var(--allus-text-secondary)' }}>
-                  {formatDuration(log.elapsedSeconds)}
-                </div>
-                <button
-                  style={pillButtonStyle}
-                  onClick={() => invokeAction('task:focus', { taskId: log.taskId, subtaskId: null, title: log.taskTitle })}
-                >
-                  Focar
-                </button>
-                <button
-                  style={iconGhostButtonStyle}
-                  onClick={async () => {
-                    if (!confirmDialog(`Remover "${log.taskTitle}" deste bloco?`)) return;
-                    await invokeAction('task:deleteLog', { taskLogId: log.id });
-                  }}
-                >
-                  ✕
-                </button>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '16px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 22 }}>📋</div>
+              <div style={{ fontSize: 13, color: 'var(--allus-text-secondary)' }}>Nenhuma tarefa neste bloco ainda.</div>
+              <div style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>
+                Adicione uma tarefa na barra de modo abaixo pra começar a cronometrar.
               </div>
-            ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[...snapshot.activeTaskLogs]
+              .sort((a, b) => {
+                const aActive = a.id === session?.activeTaskLogId;
+                const bActive = b.id === session?.activeTaskLogId;
+                if (aActive !== bActive) return aActive ? -1 : 1;
+                if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
+                return 0;
+              })
+              .map((log) => {
+                const isActive = log.id === session?.activeTaskLogId;
+                return (
+                  <div
+                    key={log.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 10px',
+                      borderRadius: 10,
+                      background: isActive ? 'rgba(236,220,1,0.10)' : 'transparent',
+                      borderLeft: isActive ? '3px solid var(--allus-yellow)' : '3px solid transparent',
+                      opacity: log.isDone ? 0.55 : 1,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={log.isDone}
+                      onChange={() => invokeAction('task:toggleDone', { taskLogId: log.id })}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          textDecoration: log.isDone ? 'line-through' : 'none',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {log.taskTitle}
+                      </div>
+                      {isActive && (
+                        <div style={{ fontSize: 10, color: 'var(--allus-yellow)', fontWeight: 600, marginTop: 1 }}>
+                          ● Focando agora
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontFamily: 'var(--allus-font-mono)', fontSize: 12, color: 'var(--allus-text-secondary)' }}>
+                      {formatDuration(log.elapsedSeconds)}
+                    </div>
+                    {!isActive && (
+                      <button
+                        style={pillButtonStyle}
+                        onClick={() => invokeAction('task:focus', { taskId: log.taskId, subtaskId: null, title: log.taskTitle })}
+                      >
+                        Focar
+                      </button>
+                    )}
+                    <button
+                      style={iconGhostButtonStyle}
+                      onClick={async () => {
+                        if (!confirmDialog(`Remover "${log.taskTitle}" deste bloco?`)) return;
+                        await invokeAction('task:deleteLog', { taskLogId: log.id });
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
           </div>
         </section>
 
@@ -701,53 +841,6 @@ export function MainWindow() {
             <button type="submit" style={pillButtonStyle} disabled={quickAddSaving}>
               {quickAddSaving ? '...' : '+'}
             </button>
-            <Tooltip text="Painel flutuante (ESC para fechar)">
-              <button
-                type="button"
-                style={pillButtonStyle}
-                onClick={() => window.allus.invoke('window:openFloating', undefined)}
-              >
-                🪟
-              </button>
-            </Tooltip>
-            <Tooltip text="Tarefas (Ctrl+T ou clique novamente)">
-              <button
-                type="button"
-                style={pillButtonStyle}
-                onClick={() => window.allus.invoke('window:toggleTaskCenter', undefined)}
-              >
-                📁
-              </button>
-            </Tooltip>
-            <Tooltip text="Minhas horas (Ctrl+H ou clique novamente)">
-              <button
-                type="button"
-                style={pillButtonStyle}
-                onClick={() => window.allus.invoke('window:toggleTimeCenter', undefined)}
-              >
-                📊
-              </button>
-            </Tooltip>
-            <Tooltip text="Dashboard (Ctrl+D ou clique novamente)">
-              <button
-                type="button"
-                style={pillButtonStyle}
-                onClick={() => window.allus.invoke('window:toggleDashboard', undefined)}
-              >
-                📈
-              </button>
-            </Tooltip>
-            {snapshot?.auth.profile?.role === 'admin' && (
-              <Tooltip text="Allus Pulse (Ctrl+P ou clique novamente)">
-                <button
-                  type="button"
-                  style={pillButtonStyle}
-                  onClick={() => window.allus.invoke('window:togglePulse', undefined)}
-                >
-                  💠
-                </button>
-              </Tooltip>
-            )}
           </form>
         </section>
 
@@ -824,8 +917,17 @@ export function MainWindow() {
           ⏹
         </button>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: 'var(--allus-text-muted)' }}>
-          Som e outras preferências: botão "Conta" no topo
+        <span
+          style={{
+            fontSize: 11,
+            color: 'var(--allus-text-muted)',
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid var(--allus-glass-border)',
+            borderRadius: 999,
+            padding: '4px 10px',
+          }}
+        >
+          ⏱ {POMO_MODES[snapshot.selectedMode].title} · {Math.round(POMO_MODES[snapshot.selectedMode].focusSeconds / 60)} min
         </span>
       </div>
       <ToastHost />
@@ -842,6 +944,50 @@ const inputStyle: React.CSSProperties = {
   outline: 'none',
   fontSize: 13,
 };
+
+function CollapsibleSubsection({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--allus-text-muted)',
+          fontSize: 11,
+          cursor: 'pointer',
+          padding: 0,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          marginBottom: open ? 6 : 0,
+        }}
+      >
+        {open ? '▾' : '▸'} {title}
+      </button>
+      {open && <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingLeft: 2 }}>{children}</div>}
+    </div>
+  );
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
 
 function getInitials(fullName: string | undefined): string {
   if (!fullName) return '?';

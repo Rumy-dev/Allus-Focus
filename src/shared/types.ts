@@ -16,27 +16,27 @@ export interface PomoModeConfig {
 export const POMO_MODES: Record<PomoMode, PomoModeConfig> = {
   classic: {
     mode: 'classic',
-    title: 'Classic',
-    menuTitle: 'Modo: Classic (25 min)',
-    tableTitle: 'Classic',
+    title: 'Curto',
+    menuTitle: 'Modo: Curto (25 min)',
+    tableTitle: 'Curto',
     focusSeconds: 25 * 60,
     breakSeconds: 5 * 60,
     icon: 'timer',
   },
   deskTime: {
     mode: 'deskTime',
-    title: 'DeskTime',
-    menuTitle: 'Modo: DeskTime (52 min)',
-    tableTitle: 'DeskTime',
+    title: 'Médio',
+    menuTitle: 'Modo: Médio (52 min)',
+    tableTitle: 'Médio',
     focusSeconds: 52 * 60,
     breakSeconds: 17 * 60,
     icon: 'desktopcomputer',
   },
   deepWork: {
     mode: 'deepWork',
-    title: 'Deep Work',
-    menuTitle: 'Modo: Deep Work (90 min)',
-    tableTitle: 'Deep Work',
+    title: 'Longo',
+    menuTitle: 'Modo: Longo (90 min)',
+    tableTitle: 'Longo',
     focusSeconds: 90 * 60,
     breakSeconds: 20 * 60,
     icon: 'brain.head.profile',
@@ -70,6 +70,7 @@ export interface UserPreferences {
   floatingPanelOpacity: number; // 0-100, quanto mais alto mais opaco
   floatingPanelSize: { width: number; height: number } | null; // null = auto-fit (modo normal)
   floatingPanelCompactSize: { width: number; height: number } | null; // null = default (modo compacto)
+  floatingPanelPosition: { x: number; y: number } | null; // null = deixa o SO escolher (primeira abertura)
   floatingPanelIsCompactMode: boolean; // true = mini widget (padrão), false = painel completo
   floatingPanelSizeLocked: boolean; // true = tamanho travado, ignora auto-resize e não é redimensionável
   floatingPanelExpanded: boolean; // true = drawer de extras (recentes, histórico, config) aberto
@@ -85,6 +86,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   floatingPanelOpacity: 90,
   floatingPanelSize: null,
   floatingPanelCompactSize: null,
+  floatingPanelPosition: null,
   floatingPanelIsCompactMode: true,
   floatingPanelSizeLocked: false,
   floatingPanelExpanded: false,
@@ -113,6 +115,7 @@ export interface Client {
   name: string;
   createdBy: string;
   createdAt: string;
+  archivedAt: string | null;
 }
 
 export interface Project {
@@ -123,7 +126,11 @@ export interface Project {
   budgetHours: number | null;
   createdBy: string;
   createdAt: string;
+  archivedAt: string | null;
 }
+
+export type TaskStatus = 'Pendente' | 'Em andamento' | 'Bloqueado' | 'Concluído';
+export type TaskPriority = 'Alta' | 'Média' | 'Baixa';
 
 export interface Task {
   id: string;
@@ -131,8 +138,11 @@ export interface Task {
   parentTaskId: string | null;
   title: string;
   isDone: boolean;
+  status: TaskStatus;
+  priority: TaskPriority;
   createdBy: string;
   createdAt: string;
+  archivedAt: string | null;
 }
 
 export interface PomoSession {
