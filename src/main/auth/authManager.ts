@@ -93,6 +93,7 @@ class AuthManager extends EventEmitter {
       .eq('id', userId)
       .single();
     if (error || !data) {
+      console.error('[auth] hydrateProfile falhou', { userId, error });
       this.setState({ status: 'signedOut' });
       return error?.message ?? 'perfil não encontrado.';
     }
