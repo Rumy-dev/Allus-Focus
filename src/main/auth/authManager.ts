@@ -1,7 +1,22 @@
 import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
+import path from 'node:path';
+import { app } from 'electron';
 import { supabase } from '../supabase/client';
 import type { Profile, UserPreferences } from '../../shared/types';
 import { DEFAULT_PREFERENCES } from '../../shared/types';
+
+// Log temporário pra depurar um erro de login só reproduzível no Mac que
+// não aparece no stdout do Terminal (o app se destaca do processo pai).
+// Remover depois de identificar a causa.
+function debugLog(label: string, data: unknown): void {
+  try {
+    const line = `[${new Date().toISOString()}] ${label} ${JSON.stringify(data)}\n`;
+    fs.appendFileSync(path.join(app.getPath('userData'), 'debug-auth.log'), line);
+  } catch {
+    // ignora falha de log
+  }
+}
 
 export type AuthState =
   | { status: 'signedOut' }
@@ -31,6 +46,7 @@ class AuthManager extends EventEmitter {
 
   async signIn(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }> {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    debugLog('signIn result', { hasSession: Boolean(data.session), userId: data.session?.user.id, error: error?.message });
     if (error || !data.session) {
       return { ok: false, error: traduzErro(error?.message) };
     }
@@ -92,8 +108,8 @@ class AuthManager extends EventEmitter {
       .select('id, full_name, created_at, preferences, role')
       .eq('id', userId)
       .single();
+    debugLog('hydrateProfile query', { userId, hasData: Boolean(data), error });
     if (error || !data) {
-      console.error('[auth] hydrateProfile falhou', { userId, error });
       this.setState({ status: 'signedOut' });
       return error?.message ?? 'perfil não encontrado.';
     }
