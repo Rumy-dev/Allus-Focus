@@ -60,8 +60,12 @@ const config: ForgeConfig = {
       name: 'AllusFocus',
       format: 'ULFO',
       iconSize: 100,
-      contents: [
-        { x: 100, y: 100, type: 'file', path: '' },
+      // `contents` customizado precisa ser uma função que recebe `opts.appPath`
+      // (caminho real do .app gerado no build) — um array fixo com path
+      // vazio faz o electron-installer-dmg resolver pro cwd da CI e empacotar
+      // a pasta errada em vez do app (foi o que quebrou o .dmg da v3.0.6).
+      contents: (opts: { appPath: string }) => [
+        { x: 100, y: 100, type: 'file', path: opts.appPath },
         { x: 400, y: 100, type: 'link', path: '/Applications' },
       ],
     }),

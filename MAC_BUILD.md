@@ -2,26 +2,24 @@
 
 ## Status atual
 ✅ Configuração de build pronta (MakerDMG, entitlements, Info.plist)
-✅ v0.1.0 gerada localmente por Pedro (Mac Apple Silicon) e publicada em
-   [GitHub Releases](https://github.com/Rumy-dev/Allus-Focus/releases)
-⚠️ GitHub Actions **não funciona nesta conta** — ver seção abaixo
+✅ GitHub Actions builda e publica o `.dmg` automaticamente (`.github/workflows/build-mac.yml`)
+⚠️ O disparo automático (push de tag `v*`) pode falhar silenciosamente se a tag
+   for criada no mesmo commit de uma mudança grande no repo (ex.: rename do
+   repositório) — foi o que aconteceu com a v3.0.6, que saiu sem `.dmg` na
+   release. Nesses casos, dispare manualmente (ver abaixo) que ele publica
+   certinho na release já existente.
 
-## Por que não usamos CI/CD (GitHub Actions)
+## CI/CD (GitHub Actions)
 
-Tentamos configurar `.github/workflows/build-mac.yml` pra buildar automaticamente
-em runner macOS gratuito do GitHub, mas a conta usada pra criar o repositório
-(`Rumy-dev`) é muito nova e o GitHub bloqueia silenciosamente o acesso a runners
-macOS/Windows (que custam 10x mais que Linux) em contas recém-criadas, como
-proteção antiabuso. Confirmado via API: um workflow idêntico rodando em
-`ubuntu-latest` foi aceito normalmente; o mesmo com `runs-on: macos-latest`
-nunca apareceu na lista de workflows, mesmo com o repositório público.
+`.github/workflows/build-mac.yml` builda em runner `macos-latest` e publica o
+`.dmg` direto na release do GitHub (via `PublisherGithub`, usa a versão do
+`package.json` pra achar/criar a release — não depende de qual ref disparou
+o run). Funciona normalmente desde a v3.0.0.
 
-O arquivo `.github/workflows/build-mac.yml` continua no repositório — quando a
-conta acumular mais tempo/atividade (ou você abrir chamado no suporte do
-GitHub pedindo liberação), ele deve passar a funcionar sem precisar reconfigurar
-nada. Pra testar se já foi liberado: **Actions → Build macOS → Run workflow**.
+Se uma tag nova não disparar o build sozinha, dispare à mão:
+**Actions → Build macOS → Run workflow** (branch `master`).
 
-## Como buildar no macOS (processo atual — funciona)
+## Como buildar no macOS localmente (alternativa)
 
 Precisa de alguém com um Mac (Pedro tem Apple Silicon M-series). Ver
 `Allus-Clock-Build-Mac.pdf` na raiz do repo pra instruções passo a passo
@@ -41,11 +39,10 @@ Gera o `.dmg` não assinado em:
 ## Publicando uma nova versão
 
 1. Bump de versão em `package.json`
-2. Gerar o `.dmg` (processo acima)
-3. Criar tag: `git tag vX.Y.Z && git push origin vX.Y.Z`
-4. Criar Release no GitHub e subir o `.dmg` como asset — via UI
-   (`github.com/Rumy-dev/Allus-Focus/releases/new`) ou via API com um
-   Personal Access Token (escopo `repo`)
+2. Criar tag: `git tag vX.Y.Z && git push origin vX.Y.Z`
+3. Conferir se `build-mac.yml` e `build-windows.yml` rodaram (Actions) e
+   publicaram os assets na release `vX.Y.Z`. Se não rodaram sozinhos, disparar
+   manualmente via `workflow_dispatch` (Actions → Run workflow).
 
 ## Distribuição pros usuários finais
 
